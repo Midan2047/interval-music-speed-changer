@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">IntervalMusicSpeedChanger</string>
+    <string name="music">노래</string>
+    <string name="settings">설정</string>
+    <string name="list_wantToBe_playList">플레이리스트가 되고 싶은 어떤 리스트</string>
+    <string name="timer">타이머</string>
+    <string name="sets">SETS</string>
+    <string name="walk">WALK</string>
+    <string name="run">RUN</string>
+    <string name="save">저장</string>
+    <string name="contact_guide">문의사항이 있으면 익명이를 눌러주세요</string>
+    <string name="path">경로</string>
+    <string name="path_somewhere">경로어딘가</string>
+</resources>

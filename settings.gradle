@@ -2,7 +2,8 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
-        gradlePluginPortal()
+        maven { url "https://jitpack.io" }
+        maven { url "https://s01.oss.sonatype.org/content/repositories/releases/" }
     }
 }
 dependencyResolutionManagement {
@@ -14,3 +15,9 @@ dependencyResolutionManagement {
 }
 rootProject.name = "IntervalMusicSpeedChanger"
 include ':app'
+include ':local'
+include ':presentation'
+include ':data'
+include ':domain'
+include ':remote'
+include ':common'
