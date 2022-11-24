@@ -11,12 +11,16 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
-import com.ddodang.intervalmusicspeedchanger.presentation.databinding.FragmentSettingsBinding
-import com.ddodang.intervalmusicspeedchanger.presentation.util.IntervalMusicPlayer
 import com.ddodang.intervalmusicspeedchanger.presentation.R
+import com.ddodang.intervalmusicspeedchanger.presentation.databinding.FragmentSettingsBinding
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class SettingFragment : Fragment() {
+
+    private val viewModel: SettingsViewModel by viewModels()
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding: FragmentSettingsBinding
@@ -33,50 +37,16 @@ class SettingFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSettingsBinding.inflate(inflater, container, false)
 
+        viewModel.initialize()
+
+        binding.viewModel = viewModel
+        binding.lifecycleOwner = viewLifecycleOwner
+
+
         Glide.with(requireContext())
             .asGif()
             .load(R.raw.shouting_ikmyung)
             .into(binding.imageButtonContact)
-
-        binding.textViewSetsCount.text = IntervalMusicPlayer.setCount.toString()
-        binding.textViewWalkCount.text = IntervalMusicPlayer.walkingTime.toString()
-        binding.textViewRunCount.text = IntervalMusicPlayer.runningTime.toString()
-
-
-        binding.imageButtonIncreaseSets.setOnClickListener {
-            IntervalMusicPlayer.setCount = IntervalMusicPlayer.setCount + 1
-            binding.textViewSetsCount.text = IntervalMusicPlayer.setCount.toString()
-        }
-
-        binding.imageButtonReduceSets.setOnClickListener {
-            IntervalMusicPlayer.setCount = (IntervalMusicPlayer.setCount - 1).coerceAtLeast(0)
-            binding.textViewSetsCount.text = IntervalMusicPlayer.setCount.toString()
-        }
-
-
-        binding.imageButtonIncreaseWalk.setOnClickListener {
-            IntervalMusicPlayer.walkingTime = IntervalMusicPlayer.walkingTime + 1
-            binding.textViewWalkCount.text = IntervalMusicPlayer.walkingTime.toString()
-        }
-
-        binding.imageButtonReduceWalk.setOnClickListener {
-            IntervalMusicPlayer.walkingTime = (IntervalMusicPlayer.walkingTime - 1).coerceAtLeast(0)
-            binding.textViewWalkCount.text = IntervalMusicPlayer.walkingTime.toString()
-        }
-
-        binding.imageButtonIncreaseRun.setOnClickListener {
-            IntervalMusicPlayer.runningTime = IntervalMusicPlayer.runningTime + 1
-            binding.textViewRunCount.text = IntervalMusicPlayer.runningTime.toString()
-        }
-
-        binding.imageButtonReduceRun.setOnClickListener {
-            IntervalMusicPlayer.runningTime = (IntervalMusicPlayer.runningTime - 1).coerceAtLeast(0)
-            binding.textViewRunCount.text = IntervalMusicPlayer.runningTime.toString()
-        }
-
-        binding.buttonSaveTimerSettings.setOnClickListener {
-            IntervalMusicPlayer.saveSettings()
-        }
 
         binding.imageButtonContact.setOnClickListener {
             if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {

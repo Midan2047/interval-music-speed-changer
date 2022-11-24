@@ -6,13 +6,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.net.toFile
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.ddodang.intervalmusicspeedchanger.presentation.databinding.FragmentMusicListBinding
+import com.ddodang.intervalmusicspeedchanger.presentation.model.LoadingState
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.LoadingDialog
+import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MusicListFragment : Fragment() {
@@ -23,11 +27,16 @@ class MusicListFragment : Fragment() {
     private val binding: FragmentMusicListBinding
         get() = _binding!!
 
+    @Inject
+    lateinit var musicPlayer: MusicPlayer
+
+    private val loadingDialog: LoadingDialog by lazy { LoadingDialog(requireContext()) }
+
     private val adapter = MusicListAdapter(
         onClick = { music ->
+            musicPlayer.setMusicList(viewModel.musicListFlow.value)
             findNavController().navigate(
                 MusicListFragmentDirections.actionFragmentMusicListToFragmentMusic(
-                    viewModel.musicListFlow.value.toTypedArray(),
                     music
                 )
             )
@@ -37,13 +46,22 @@ class MusicListFragment : Fragment() {
         }
     )
 
-    private val addItemLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { intent ->
-        val fileUri = intent.data?.data ?: return@registerForActivityResult
-        val filePath = fileUri.toFile().absolutePath
-        viewModel.copyMusic(filePath)
+    private val addItemLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { intent ->
+            val fileUri = intent.data?.data ?: return@registerForActivityResult
+            viewModel.copyMusic(fileUri.toString())
+        }
+
+    override fun onStart() {
+        super.onStart()
+        setFlowListener()
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
         _binding = FragmentMusicListBinding.inflate(inflater, container, false)
         viewModel.loadMusicList()
 
@@ -55,7 +73,6 @@ class MusicListFragment : Fragment() {
         }
 
         binding.recyclerViewMusic.adapter = adapter
-        setFlowListener()
         viewModel.loadMusicList()
 
         return binding.root
@@ -63,8 +80,18 @@ class MusicListFragment : Fragment() {
 
     private fun setFlowListener() {
         viewLifecycleOwner.lifecycleScope.launchWhenStarted {
-            viewModel.musicListFlow.collect { musicList ->
-                adapter.submitList(musicList)
+            launch {
+                viewModel.musicListFlow.collect { musicList ->
+                    adapter.submitList(musicList)
+                }
+            }
+            launch {
+                viewModel.loadingFlow.collect { loadingState ->
+                    when (loadingState) {
+                        is LoadingState.Show -> loadingDialog.show(loadingState.message)
+                        LoadingState.NotShowing -> loadingDialog.dismiss()
+                    }
+                }
             }
         }
     }

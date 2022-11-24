@@ -1,5 +1,6 @@
 package com.ddodang.intervalmusicspeedchanger.data.repository
 
+import com.ddodang.intervalmusicspeedchanger.data.mapper.toData
 import com.ddodang.intervalmusicspeedchanger.data.mapper.toDomain
 import com.ddodang.intervalmusicspeedchanger.data.source.local.MusicLocalDataSource
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
@@ -20,6 +21,9 @@ internal class MusicRepositoryImpl @Inject constructor(
 
     override suspend fun fetchIntervalSettings(): Result<IntervalSetting> =
         local.fetchIntervalSettings().map { settingData -> settingData.toDomain() }
+
+    override suspend fun updateIntervalSettings(intervalSettings: IntervalSetting): Result<Unit> =
+        local.updateIntervalSettings(intervalSettings.toData())
 
     override suspend fun copyMusic(filePath: String): Result<Unit> = local.copyMusic(filePath)
 

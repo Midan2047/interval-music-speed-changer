@@ -10,10 +10,11 @@ import javax.inject.Singleton
 internal class SharedManagerUtil @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
+
     private val sharedPreferences = context.getSharedPreferences(SHARED_PREFERENCE_FILE_NAME, 0)
 
     var setCount: Int
-        get() = sharedPreferences.getInt(SET_COUNT, 0)
+        get() = sharedPreferences.getInt(SET_COUNT, 1)
         set(value) {
             sharedPreferences.edit {
                 putInt(SET_COUNT, value)
@@ -21,7 +22,7 @@ internal class SharedManagerUtil @Inject constructor(
         }
 
     var walkingTime: Int
-        get() = sharedPreferences.getInt(WALKING_TIME, 0)
+        get() = sharedPreferences.getInt(WALKING_TIME, 1)
         set(value) {
             sharedPreferences.edit {
                 putInt(WALKING_TIME, value)
@@ -29,7 +30,7 @@ internal class SharedManagerUtil @Inject constructor(
         }
 
     var runningTime: Int
-        get() = sharedPreferences.getInt(RUNNING_TIME, 0)
+        get() = sharedPreferences.getInt(RUNNING_TIME, 1)
         set(value) {
             sharedPreferences.edit {
                 putInt(RUNNING_TIME, value)

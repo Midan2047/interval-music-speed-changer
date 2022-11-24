@@ -14,9 +14,6 @@
             android:id="@+id/action_fragment_music_list_to_fragment_music"
             app:destination="@id/fragment_music">
             <argument
-                android:name="musicList"
-                app:argType="com.ddodang.intervalmusicspeedchanger.domain.model.Music[]" />
-            <argument
                 android:name="selectedMusic"
                 app:argType="com.ddodang.intervalmusicspeedchanger.domain.model.Music" />
 

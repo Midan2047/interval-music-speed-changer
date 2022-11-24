@@ -12,7 +12,7 @@ buildscript {
 
         compileSdk = 31
         targetSdk = 31
-        minSdk = 21
+        minSdk = 23
     }
 
     repositories {

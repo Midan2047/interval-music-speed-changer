@@ -1,24 +1,21 @@
 package com.ddodang.intervalmusicspeedchanger.presentation.ui.music_play
 
-import android.media.MediaPlayer
-import android.net.Uri
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.databinding.FragmentMusicBinding
-import com.ddodang.intervalmusicspeedchanger.presentation.util.IntervalMusicPlayer
+import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
+import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MusicPlayFragment : Fragment() {
@@ -29,106 +26,53 @@ class MusicPlayFragment : Fragment() {
     private val binding: FragmentMusicBinding
         get() = _binding!!
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    @Inject
+    lateinit var musicPlayer: MusicPlayer
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
         _binding = FragmentMusicBinding.inflate(inflater, container, false)
+        binding.viewModel = viewModel
+        binding.lifecycleOwner = viewLifecycleOwner
+
+        viewModel.initialize()
 
         Glide.with(requireContext())
             .asGif()
             .load(R.raw.ikmyung_dance)
             .into(binding.imageViewIkmyungDance)
 
-        viewLifecycleOwner.lifecycleScope.launch {
-            if (IntervalMusicPlayer.musicPlayer?.isPlaying != true) {
-                IntervalMusicPlayer.musicPlayer = createMusicPlayer()
-                IntervalMusicPlayer.startTimer()
-            } else {
-                IntervalMusicPlayer.musicList.getOrNull(IntervalMusicPlayer.playingMusicPosition)?.let { musicInfo ->
-                    binding.textViewTitle.text = musicInfo.title
-                    binding.textViewSinger.text = musicInfo.artist
-                }
-            }
-        }
+        requireContext().startService(Intent(requireContext(), MusicService::class.java))
 
-
-        binding.imageButtonPlayPause.setOnClickListener {
-            if (IntervalMusicPlayer.musicPlayer?.isPlaying != true) {
-                playMusic()
-            } else {
-                stopMusic()
-            }
-        }
-
-        binding.imageButtonLoop.setOnClickListener {
-            IntervalMusicPlayer.isLooping = !IntervalMusicPlayer.isLooping
-        }
-
-        binding.imageButtonShuffle.setOnClickListener {
-            IntervalMusicPlayer.musicSpeed = 2f
-        }
 
         binding.imageButtonForward.setOnClickListener {
-            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                stopMusic()
-                IntervalMusicPlayer.playingMusicPosition =
-                    (IntervalMusicPlayer.playingMusicPosition + 1) % IntervalMusicPlayer.musicList.size
-                IntervalMusicPlayer.musicPlayer = createMusicPlayer()
+            viewLifecycleOwner.lifecycleScope.launch {
+                requireContext().startService(Intent(requireContext(), MusicService::class.java).apply {
+                    action = MusicService.Constants.ACTION.NEXT
+                })
             }
         }
 
+
         binding.imageButtonRewind.setOnClickListener {
-            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                stopMusic()
-                IntervalMusicPlayer.playingMusicPosition =
-                    (IntervalMusicPlayer.playingMusicPosition + IntervalMusicPlayer.musicList.size - 1) % IntervalMusicPlayer.musicList.size
-                IntervalMusicPlayer.musicPlayer = createMusicPlayer()
+            viewLifecycleOwner.lifecycleScope.launch {
+                requireContext().startService(Intent(requireContext(), MusicService::class.java).apply {
+                    action = MusicService.Constants.ACTION.PREVIOUS
+                })
+            }
+        }
+
+        binding.imageButtonPlayPause.setOnClickListener {
+            viewLifecycleOwner.lifecycleScope.launch {
+                requireContext().startService(Intent(requireContext(), MusicService::class.java).apply {
+                    action = MusicService.Constants.ACTION.TOGGLE_PLAY
+                })
             }
         }
 
         return binding.root
-    }
-
-    private fun stopMusic() {
-        println("Music Stop...")
-        IntervalMusicPlayer.musicPlayer?.pause()
-        binding.imageButtonPlayPause.setImageDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.ic_play))
-        IntervalMusicPlayer.pauseTimer()
-    }
-
-    private fun playMusic() {
-        println("Music Start!")
-        IntervalMusicPlayer.musicPlayer?.start()
-        binding.imageButtonPlayPause.setImageDrawable(ContextCompat.getDrawable(requireContext(), R.drawable.ic_pause))
-        IntervalMusicPlayer.startTimer()
-    }
-
-    private suspend fun createMusicPlayer(): MediaPlayer? {
-        val currentMusic = IntervalMusicPlayer.musicList.getOrNull(IntervalMusicPlayer.playingMusicPosition) ?: return null
-        withContext(Dispatchers.Main) {
-            binding.textViewTitle.text = currentMusic.title
-            binding.textViewSinger.text = currentMusic.artist
-        }
-
-        return IntervalMusicPlayer.musicList.getOrNull(IntervalMusicPlayer.playingMusicPosition)?.let { musicInfo ->
-            withContext(Dispatchers.IO) {
-                MediaPlayer.create(
-                    requireContext(),
-                    Uri.fromFile(File(musicInfo.location))
-                ).also { mediaPlayer ->
-                    mediaPlayer.playbackParams = mediaPlayer.playbackParams.setSpeed(IntervalMusicPlayer.musicSpeed)
-                    mediaPlayer.setOnCompletionListener {
-                        println(it)
-                        viewLifecycleOwner.lifecycleScope.launch {
-                            if (!IntervalMusicPlayer.isLooping) {
-                                IntervalMusicPlayer.playingMusicPosition =
-                                    (IntervalMusicPlayer.playingMusicPosition + 1) % IntervalMusicPlayer.musicList.size
-                            }
-                            IntervalMusicPlayer.musicPlayer = createMusicPlayer()
-                        }
-                        it.stop()
-                        it.release()
-                    }
-                }
-            }
-        }
     }
 }

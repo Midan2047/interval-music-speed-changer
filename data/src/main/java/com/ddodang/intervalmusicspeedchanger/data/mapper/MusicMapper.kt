@@ -12,3 +12,7 @@ internal fun MusicData.toDomain() = Music(
 internal fun IntervalSettingData.toDomain() = IntervalSetting(
     setCount = setCount, walkingMinutes = walkingMinutes, runningMinutes = runningMinutes
 )
+
+internal fun IntervalSetting.toData() = IntervalSettingData(
+    setCount = setCount, walkingMinutes = walkingMinutes, runningMinutes = runningMinutes
+)

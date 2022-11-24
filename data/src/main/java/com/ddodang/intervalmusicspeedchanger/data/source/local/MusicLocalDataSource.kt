@@ -7,6 +7,7 @@ interface MusicLocalDataSource {
 
     suspend fun fetchMusicList(): Result<List<MusicData>>
     suspend fun fetchIntervalSettings(): Result<IntervalSettingData>
+    suspend fun updateIntervalSettings(intervalSetting: IntervalSettingData): Result<Unit>
     suspend fun copyMusic(filePath: String): Result<Unit>
     suspend fun deleteMusic(filePath: String): Result<Unit>
 }

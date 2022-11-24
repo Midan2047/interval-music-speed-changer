@@ -4,7 +4,9 @@ import com.ddodang.intervalmusicspeedchanger.common.extensions.flatMap
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.domain.repository.MusicRepository
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class AddMusicUseCase @Inject constructor(
     private val musicRepository: MusicRepository,
 ) {

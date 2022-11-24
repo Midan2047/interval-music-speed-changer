@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/textView_title_notification"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:textColor="@color/black"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:text="Nxde" />
+
+        <TextView
+            android:id="@+id/textView_singer_notification"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:textSize="11sp"
+            tools:text="(G)-idle" />
+    </LinearLayout>
+
+
+    <ImageButton
+        android:id="@+id/imageButton_rewind_notification"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@color/transparent"
+        android:src="@drawable/ic_fast_rewind" />
+
+    <ImageButton
+        android:id="@+id/imageButton_playPause_notification"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@color/transparent"
+        android:src="@drawable/ic_pause" />
+
+    <ImageButton
+        android:id="@+id/imageButton_forward_notification"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@color/transparent"
+        android:src="@drawable/ic_fast_forward" />
+
+
+    <ImageButton
+        android:id="@+id/imageButton_close_notification"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@color/transparent"
+        android:src="@drawable/ic_close"
+        android:tint="@color/gray50" />
+
+</LinearLayout>
