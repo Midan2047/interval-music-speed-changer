@@ -1,4 +1,4 @@
-package com.ddodang.intervalmusicspeedchanger.presentation.ui.music_play
+package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.play
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -13,19 +13,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MusicPlayViewModel @Inject constructor(
-    private val savedStateHandle: SavedStateHandle,
-    private val musicPlayer: MusicPlayer,
-    private val fetchIntervalSettings: FetchIntervalSettingUseCase,
+    musicPlayer: MusicPlayer,
 ) : ViewModel() {
 
     val isPlayingFlow = musicPlayer.isPlayingFlow
     val currentPlayingMusicFlow = musicPlayer.currentPlayingMusicFlow
-
-    fun initialize() {
-        viewModelScope.launch {
-            val selectedMusic = savedStateHandle.get<Music>("selectedMusic")!!
-            val interval = fetchIntervalSettings().getOrDefault(IntervalSetting(1, 1, 1))
-            musicPlayer.initialize(selectedMusic, interval)
-        }
-    }
 }

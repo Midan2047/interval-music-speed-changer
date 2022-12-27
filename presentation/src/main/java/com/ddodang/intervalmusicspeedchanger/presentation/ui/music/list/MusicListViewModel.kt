@@ -1,12 +1,15 @@
-package com.ddodang.intervalmusicspeedchanger.presentation.ui.music_list
+package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.AddMusicUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.DeleteMusicUseCase
+import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchIntervalSettingUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchMusicListUseCase
 import com.ddodang.intervalmusicspeedchanger.presentation.model.LoadingState
+import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,14 +20,19 @@ import javax.inject.Inject
 class MusicListViewModel @Inject constructor(
     private val addMusicUseCase: AddMusicUseCase,
     private val fetchMusicListUseCase: FetchMusicListUseCase,
-    private val deleteMusicUseCase : DeleteMusicUseCase
+    private val deleteMusicUseCase: DeleteMusicUseCase,
+    private val fetchIntervalSettings: FetchIntervalSettingUseCase,
+    private val musicPlayer: MusicPlayer,
 ) : ViewModel() {
 
     private val _musicListFlow: MutableStateFlow<List<Music>> = MutableStateFlow(emptyList())
     val musicListFlow = _musicListFlow.asStateFlow()
 
-    private val _loadingFlow : MutableStateFlow<LoadingState> = MutableStateFlow(LoadingState.NotShowing)
+    private val _loadingFlow: MutableStateFlow<LoadingState> = MutableStateFlow(LoadingState.NotShowing)
     val loadingFlow = _loadingFlow.asStateFlow()
+
+    val isPlayingFlow = musicPlayer.isPlayingFlow
+    val currentPlayingMusicFlow = musicPlayer.currentPlayingMusicFlow
 
     fun loadMusicList() {
         viewModelScope.launch {
@@ -53,6 +61,14 @@ class MusicListViewModel @Inject constructor(
                 _musicListFlow.value = musicList
             }
             _loadingFlow.value = LoadingState.NotShowing
+        }
+    }
+
+    fun setMusic(music: Music) {
+        viewModelScope.launch {
+            musicPlayer.setMusicList(musicListFlow.value)
+            val interval = fetchIntervalSettings().getOrDefault(IntervalSetting(1, 1, 1))
+            musicPlayer.initialize(music, interval)
         }
     }
 }

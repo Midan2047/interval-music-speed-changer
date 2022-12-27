@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MotionScene xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:motion="http://schemas.android.com/apk/res-auto">
+
+    <Transition
+        motion:constraintSetEnd="@+id/end"
+        motion:constraintSetStart="@id/start"
+        motion:duration="1000">
+        <OnSwipe
+            motion:dragDirection="dragDown"
+            motion:touchAnchorId="@id/imageView_ikmyungDance" />
+
+        <KeyFrameSet>
+            <KeyPosition
+                motion:framePosition="1"
+                motion:motionTarget="@+id/imageView_ikmyungDance" />
+            <KeyPosition
+                motion:framePosition="30"
+                motion:motionTarget="@+id/textView_title" />
+            <KeyPosition
+                motion:framePosition="30"
+                motion:motionTarget="@+id/textView_singer" />
+            <KeyPosition
+                motion:framePosition="90"
+                motion:motionTarget="@+id/imageButton_rewind" />
+            <KeyPosition
+                motion:framePosition="90"
+                motion:motionTarget="@+id/imageButton_playPause" />
+            <KeyPosition
+                motion:framePosition="90"
+                motion:motionTarget="@+id/imageButton_forward" />
+            <KeyAttribute
+                motion:framePosition="30"
+                motion:motionTarget="@+id/textView_title">
+                <CustomAttribute
+                    motion:attributeName="gravity"
+                    motion:customIntegerValue="0x00800003" />
+
+                <CustomAttribute
+                    motion:attributeName="textSize"
+                    motion:customFloatValue="16" />
+            </KeyAttribute>
+
+            <KeyAttribute
+                motion:framePosition="30"
+                motion:motionTarget="@+id/textView_singer">
+
+                <CustomAttribute
+                    motion:attributeName="textSize"
+                    motion:customFloatValue="11" />
+            </KeyAttribute>
+            <KeyPosition
+                motion:motionTarget="@+id/view_background"
+                motion:framePosition="1"
+                motion:keyPositionType="deltaRelative" />
+        </KeyFrameSet>
+    </Transition>
+
+    <ConstraintSet android:id="@+id/start">
+        <Constraint
+            android:id="@+id/imageView_ikmyungDance"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            motion:layout_constraintBottom_toTopOf="@id/textView_title"
+            motion:layout_constraintDimensionRatio="H,1:1"
+            motion:layout_constraintEnd_toEndOf="parent"
+            motion:layout_constraintStart_toStartOf="parent"
+            motion:layout_constraintTop_toTopOf="parent"
+            motion:layout_constraintVertical_chainStyle="spread"
+            motion:layout_constraintWidth_percent="0.8" />
+        <Constraint
+            android:id="@+id/textView_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            motion:layout_constraintBottom_toTopOf="@id/imageButton_playPause"
+            motion:layout_constraintEnd_toEndOf="parent"
+            motion:layout_constraintStart_toStartOf="parent"
+            motion:layout_constraintTop_toBottomOf="@id/imageView_ikmyungDance">
+            <CustomAttribute
+                motion:attributeName="textSize"
+                motion:customFloatValue="24" />
+
+            <CustomAttribute
+                motion:attributeName="gravity"
+                motion:customIntegerValue="0x11" />
+        </Constraint>
+        <Constraint
+            android:id="@+id/textView_singer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            motion:layout_constraintEnd_toEndOf="parent"
+            motion:layout_constraintStart_toStartOf="parent"
+            motion:layout_constraintTop_toBottomOf="@id/textView_title">
+            <CustomAttribute
+                motion:attributeName="textSize"
+                motion:customFloatValue="16" />
+        </Constraint>
+        <Constraint
+            android:id="@+id/imageButton_shuffle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            motion:layout_constraintBottom_toBottomOf="@id/imageButton_playPause"
+            motion:layout_constraintEnd_toStartOf="@id/imageButton_rewind"
+            motion:layout_constraintHorizontal_chainStyle="spread"
+            motion:layout_constraintStart_toStartOf="parent"
+            motion:layout_constraintTop_toTopOf="@id/imageButton_playPause">
+            <PropertySet android:visibility="visible" />
+        </Constraint>
+        <Constraint
+            android:id="@+id/imageButton_rewind"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            motion:layout_constraintBottom_toBottomOf="@id/imageButton_playPause"
+            motion:layout_constraintEnd_toStartOf="@id/imageButton_playPause"
+            motion:layout_constraintHorizontal_chainStyle="spread"
+            motion:layout_constraintStart_toEndOf="@id/imageButton_shuffle"
+            motion:layout_constraintTop_toTopOf="@id/imageButton_playPause" />
+        <Constraint
+            android:id="@+id/imageButton_playPause"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            motion:layout_constraintBottom_toBottomOf="parent"
+            motion:layout_constraintEnd_toStartOf="@id/imageButton_forward"
+            motion:layout_constraintHorizontal_chainStyle="spread"
+            motion:layout_constraintStart_toEndOf="@id/imageButton_rewind"
+            motion:layout_constraintTop_toBottomOf="@id/textView_title"
+            motion:layout_constraintVertical_chainStyle="spread" />
+        <Constraint
+            android:id="@+id/imageButton_forward"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            motion:layout_constraintBottom_toBottomOf="@id/imageButton_playPause"
+            motion:layout_constraintEnd_toStartOf="@id/imageButton_loop"
+            motion:layout_constraintHorizontal_chainStyle="spread"
+            motion:layout_constraintStart_toEndOf="@id/imageButton_playPause"
+            motion:layout_constraintTop_toTopOf="@id/imageButton_playPause" />
+        <Constraint
+            android:id="@+id/imageButton_loop"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            motion:layout_constraintBottom_toBottomOf="@id/imageButton_playPause"
+            motion:layout_constraintEnd_toEndOf="parent"
+            motion:layout_constraintHorizontal_chainStyle="spread"
+            motion:layout_constraintStart_toEndOf="@id/imageButton_forward"
+            motion:layout_constraintTop_toTopOf="@id/imageButton_playPause">
+            <PropertySet android:visibility="visible" />
+        </Constraint>
+        <Constraint
+            android:id="@+id/view_background"
+            motion:layout_constraintEnd_toEndOf="parent"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            motion:layout_constraintBottom_toBottomOf="parent"
+            motion:layout_constraintTop_toTopOf="parent"
+            motion:layout_constraintStart_toStartOf="parent" />
+    </ConstraintSet>
+
+    <ConstraintSet android:id="@+id/end">
+        <Constraint
+            android:id="@+id/imageView_ikmyungDance"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            motion:layout_constraintBottom_toBottomOf="parent"
+            motion:layout_constraintStart_toStartOf="parent" />
+        <Constraint
+            android:id="@+id/textView_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            motion:layout_constraintBottom_toTopOf="@id/textView_singer"
+            motion:layout_constraintEnd_toStartOf="@id/imageButton_rewind"
+            motion:layout_constraintStart_toEndOf="@id/imageView_ikmyungDance"
+            motion:layout_constraintTop_toTopOf="@id/imageView_ikmyungDance" />
+        <Constraint
+            android:id="@+id/textView_singer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            motion:layout_constraintBottom_toBottomOf="@id/imageView_ikmyungDance"
+            motion:layout_constraintEnd_toEndOf="@id/textView_title"
+            motion:layout_constraintStart_toStartOf="@id/textView_title"
+            motion:layout_constraintTop_toBottomOf="@id/textView_title" />
+        <Constraint
+            android:id="@+id/imageButton_rewind"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            motion:layout_constraintBottom_toBottomOf="@id/imageView_ikmyungDance"
+            motion:layout_constraintEnd_toStartOf="@id/imageButton_playPause"
+            motion:layout_constraintTop_toTopOf="@id/imageView_ikmyungDance" />
+        <Constraint
+            android:id="@+id/imageButton_playPause"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            motion:layout_constraintBottom_toBottomOf="@id/imageView_ikmyungDance"
+            motion:layout_constraintEnd_toStartOf="@id/imageButton_forward"
+            motion:layout_constraintTop_toTopOf="@id/imageView_ikmyungDance" />
+        <Constraint
+            android:id="@+id/imageButton_forward"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            motion:layout_constraintBottom_toBottomOf="@id/imageView_ikmyungDance"
+            motion:layout_constraintEnd_toEndOf="parent"
+            motion:layout_constraintTop_toTopOf="@id/imageView_ikmyungDance" />
+        <Constraint android:id="@+id/imageButton_shuffle">
+            <PropertySet android:visibility="gone" />
+        </Constraint>
+        <Constraint android:id="@+id/imageButton_loop">
+            <PropertySet android:visibility="gone" />
+        </Constraint>
+        <Constraint
+            android:id="@+id/view_background"
+            motion:layout_constraintEnd_toEndOf="parent"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            motion:layout_constraintBottom_toBottomOf="parent"
+            motion:layout_constraintTop_toTopOf="@id/imageView_ikmyungDance"
+            motion:layout_constraintStart_toStartOf="parent" />
+    </ConstraintSet>
+</MotionScene>

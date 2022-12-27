@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.widget.RemoteViews
@@ -17,6 +19,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.coroutineScope
 import com.ddodang.intervalmusicspeedchanger.presentation.R
+import com.ddodang.intervalmusicspeedchanger.presentation.receiver.AudioBroadcastReceiver
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.main.MainActivity
 import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
@@ -30,16 +33,18 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     lateinit var musicPlayer: MusicPlayer
 
     private val lifecycleRegistry = LifecycleRegistry(this)
-
+    private val receiver = AudioBroadcastReceiver()
     override fun onCreate() {
         super.onCreate()
         println("Service Created")
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         initializeNotification()
+        registerReceiver(receiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
     }
 
     override fun onDestroy() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        unregisterReceiver(receiver)
         println("Service Destroyed")
         super.onDestroy()
     }
@@ -51,6 +56,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         when (intent.action) {
             Constants.ACTION.TOGGLE_PLAY -> togglePlay()
+            Constants.ACTION.PAUSE -> pauseMusic()
             Constants.ACTION.NEXT -> playNextMusic()
             Constants.ACTION.PREVIOUS -> playPreviousMusic()
             Constants.ACTION.CLOSE -> finishService()
@@ -65,6 +71,10 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
 
     private fun playNextMusic() {
         musicPlayer.playNextMusic()
+    }
+
+    private fun pauseMusic() {
+        musicPlayer.pauseMusic()
     }
 
     private fun playPreviousMusic() {
@@ -215,6 +225,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
         object ACTION : Constants() {
 
             const val TOGGLE_PLAY = "com.ddodang.intervalmusicspeedchager.action.TOGGLEPLAY"
+            const val PAUSE = "com.ddodang.intervalmusicsppedchanger.action.PAUSE"
             const val NEXT = "com.ddodang.intervalmusicspeedchager.action.NEXT"
             const val PREVIOUS = "com.ddodang.intervalmusicspeedchager.action.PREVIOUS"
             const val CLOSE = "com.ddodang.intervalmusicspeedchanger.action.CLOSE"

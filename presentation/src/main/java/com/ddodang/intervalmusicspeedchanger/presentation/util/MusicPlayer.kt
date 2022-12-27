@@ -1,10 +1,15 @@
 package com.ddodang.intervalmusicspeedchanger.presentation.util
 
+import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.os.PowerManager
 import com.ddodang.intervalmusicspeedchanger.common.extensions.getOrDefault
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
+import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,7 +21,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class MusicPlayer @Inject constructor() {
+class MusicPlayer @Inject constructor(
+    @ApplicationContext private val context: Context,
+) {
 
     private var mediaPlayer: MediaPlayer? = null
 
@@ -34,6 +41,10 @@ class MusicPlayer @Inject constructor() {
         get() = isPlayingFlow.value
 
     private var intervalJob: Job? = null
+        set(value) {
+            field?.cancel()
+            field = value
+        }
 
     private var intervalRunning: Int = 1 * 60
     private var intervalWalking: Int = 1 * 60
@@ -48,6 +59,7 @@ class MusicPlayer @Inject constructor() {
         setInterval(interval)
         if (mediaPlayer == null) {
             setMusic(musicInfo)
+            context.startService(Intent(context, MusicService::class.java))
         }
     }
 
@@ -67,7 +79,7 @@ class MusicPlayer @Inject constructor() {
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
             )
-            setOnPreparedListener { mediaPlayer ->
+            setOnPreparedListener {
                 startMusic()
             }
             setOnCompletionListener { completedMediaPlayer ->
@@ -82,6 +94,7 @@ class MusicPlayer @Inject constructor() {
             }
             setDataSource(musicInfo.location)
             prepareAsync()
+            setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
         }
     }
 
@@ -117,6 +130,7 @@ class MusicPlayer @Inject constructor() {
         intervalJob = CoroutineScope(Dispatchers.Default).launch {
             while (currentTime < intervalSet * (intervalWalking + intervalRunning)) {
                 while (currentTime % (intervalWalking + intervalRunning) < intervalWalking) {
+                    println(currentTime)
                     delay(1000L)
                     currentTime += 1
                     if (!isPlaying) intervalJob?.cancel()
@@ -126,6 +140,7 @@ class MusicPlayer @Inject constructor() {
                 }
 
                 while (currentTime % (intervalWalking + intervalRunning) < intervalWalking + intervalRunning) {
+                    println(currentTime)
                     delay(1000L)
                     currentTime += 1
                     if (!isPlaying) intervalJob?.cancel()
@@ -135,10 +150,12 @@ class MusicPlayer @Inject constructor() {
                 }
             }
             currentTime = 0
+            intervalJob = null
+            context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.CLOSE })
         }
     }
 
-    private fun pauseMusic() {
+    fun pauseMusic() {
         mediaPlayer?.pause()
         _isPlayingFlow.value = false
     }

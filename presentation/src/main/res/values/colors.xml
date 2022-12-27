@@ -10,5 +10,6 @@
     <color name="gray50">#FF808080</color>
     <color name="transparent">#00FFFFFF</color>
     <color name="main_pink">#F132AA</color>
+    <color name="dim_main_pink">#A0F132AA</color>
     <color name="sub_pink">#f766ae</color>
 </resources>

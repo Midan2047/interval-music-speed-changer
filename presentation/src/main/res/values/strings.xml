@@ -11,4 +11,5 @@
     <string name="contact_guide">문의사항이 있으면 익명이를 눌러주세요</string>
     <string name="path">경로</string>
     <string name="path_somewhere">경로어딘가</string>
+    <string name="go_back_list">리스트로 돌아가기</string>
 </resources>

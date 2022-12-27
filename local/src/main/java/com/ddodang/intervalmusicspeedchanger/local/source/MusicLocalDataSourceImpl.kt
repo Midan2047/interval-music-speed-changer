@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Environment
+import androidx.documentfile.provider.DocumentFile
 import com.ddodang.intervalmusicspeedchanger.data.model.IntervalSettingData
 import com.ddodang.intervalmusicspeedchanger.data.model.MusicData
 import com.ddodang.intervalmusicspeedchanger.data.source.local.MusicLocalDataSource
@@ -12,6 +13,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import javax.inject.Inject
@@ -27,7 +29,7 @@ internal class MusicLocalDataSourceImpl @Inject constructor(
                 ?: return@runCatching emptyList()
             directory.listFiles()?.mapNotNull { file ->
                 val metadataRetriever = MediaMetadataRetriever()
-                metadataRetriever.setDataSource(file.absolutePath)
+                metadataRetriever.setDataSource(FileInputStream(file).fd)
                 val title =
                     metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
                         ?: file.nameWithoutExtension
@@ -45,6 +47,8 @@ internal class MusicLocalDataSourceImpl @Inject constructor(
                     location = file.absolutePath
                 )
             } ?: emptyList()
+        }.onFailure {
+            println(it)
         }
     }
 
@@ -72,13 +76,12 @@ internal class MusicLocalDataSourceImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 val inputFileUri = Uri.parse(fileUriPath)
-                val contentResolver = context.contentResolver
-                val inputStream =
-                    contentResolver.openInputStream(inputFileUri) ?: throw FileNotFoundException()
+                val documentFile = DocumentFile.fromSingleUri(context, inputFileUri) ?: throw Exception("Not Document File")
+                val inputStream = context.contentResolver.openInputStream(inputFileUri) ?: throw FileNotFoundException()
                 val file =
                     File(
                         context.getExternalFilesDir(Environment.DIRECTORY_MUSIC),
-                        inputFileUri.lastPathSegment?.split("/")?.last() ?: ""
+                        documentFile.name!!
                     )
                 file.createNewFile()
                 val outputStream = FileOutputStream(file)

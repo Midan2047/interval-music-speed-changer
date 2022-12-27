@@ -1,4 +1,4 @@
-package com.ddodang.intervalmusicspeedchanger.presentation.ui.music_list
+package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.list
 
 import android.view.LayoutInflater
 import android.view.ViewGroup

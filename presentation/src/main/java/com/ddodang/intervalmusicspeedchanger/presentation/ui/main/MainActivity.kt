@@ -6,7 +6,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.ddodang.intervalmusicspeedchanger.presentation.databinding.ActivityMainBinding
-import com.ddodang.intervalmusicspeedchanger.presentation.util.IntervalMusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -20,7 +19,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         _binding = ActivityMainBinding.inflate(LayoutInflater.from(this))
         setContentView(binding.root)
-        IntervalMusicPlayer.initialize(this)
         initNavigation()
     }
 

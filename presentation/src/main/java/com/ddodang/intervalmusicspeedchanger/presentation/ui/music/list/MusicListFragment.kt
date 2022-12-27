@@ -1,4 +1,4 @@
-package com.ddodang.intervalmusicspeedchanger.presentation.ui.music_list
+package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.list
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,12 +7,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.ddodang.intervalmusicspeedchanger.presentation.databinding.FragmentMusicListBinding
 import com.ddodang.intervalmusicspeedchanger.presentation.model.LoadingState
+import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.LoadingDialog
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.music.MusicViewModel
 import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -21,7 +23,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MusicListFragment : Fragment() {
 
-    private val viewModel: MusicListViewModel by viewModels()
+    private val viewModel: MusicListViewModel by activityViewModels()
+    private val parentViewModel: MusicViewModel by activityViewModels()
 
     private var _binding: FragmentMusicListBinding? = null
     private val binding: FragmentMusicListBinding
@@ -34,12 +37,8 @@ class MusicListFragment : Fragment() {
 
     private val adapter = MusicListAdapter(
         onClick = { music ->
-            musicPlayer.setMusicList(viewModel.musicListFlow.value)
-            findNavController().navigate(
-                MusicListFragmentDirections.actionFragmentMusicListToFragmentMusic(
-                    music
-                )
-            )
+            viewModel.setMusic(music)
+            parentViewModel.showMusicPlayFragment()
         },
         onDelete = { music ->
             viewModel.deleteMusic(music)
@@ -63,6 +62,8 @@ class MusicListFragment : Fragment() {
         savedInstanceState: Bundle?,
     ): View {
         _binding = FragmentMusicListBinding.inflate(inflater, container, false)
+        binding.viewModel = viewModel
+        binding.lifecycleOwner = viewLifecycleOwner
         viewModel.loadMusicList()
 
         binding.imageButtonAddMusic.setOnClickListener {
