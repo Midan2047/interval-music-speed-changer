@@ -9,7 +9,6 @@ import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,54 +19,44 @@ class SettingsViewModel @Inject constructor(
     private val musicPlayer: MusicPlayer,
 ) : ViewModel() {
 
-    private val _intervalSettingFlow = MutableStateFlow(IntervalSetting(1, 1, 1))
-    val intervalSettingFlow = _intervalSettingFlow.asStateFlow()
+    private val _setCountFlow = MutableStateFlow(1)
+    val setCountFlow = _setCountFlow.asStateFlow()
 
-    fun initialize() {
+    private val _walkingMinuteFlow = MutableStateFlow(1)
+    val walkingMinuteFlow = _walkingMinuteFlow.asStateFlow()
+
+    private val _runningMinuteFlow = MutableStateFlow(1)
+    val runningMinuteFlow = _runningMinuteFlow.asStateFlow()
+
+    init {
         viewModelScope.launch {
-            _intervalSettingFlow.value = fetchIntervalSettingUseCase().getOrDefault(_intervalSettingFlow.value)
+            val intervalSetting = fetchIntervalSettingUseCase().getOrDefault(IntervalSetting(1, 1, 1))
+            _setCountFlow.value = intervalSetting.setCount
+            _walkingMinuteFlow.value = intervalSetting.walkingMinutes
+            _runningMinuteFlow.value = intervalSetting.runningMinutes
         }
     }
 
-    fun increaseSet() {
-        _intervalSettingFlow.update {
-            it.copy(setCount = it.setCount + 1)
-        }
+    fun setSetCount(setCount: Int) {
+        _setCountFlow.value = setCount
     }
 
-    fun increaseWalkingMinute() {
-        _intervalSettingFlow.update {
-            it.copy(walkingMinutes = it.walkingMinutes + 1)
-        }
+    fun setWalkingMinute(walkingMinute: Int) {
+        _walkingMinuteFlow.value = walkingMinute
     }
 
-    fun increaseRunningMinute() {
-        _intervalSettingFlow.update {
-            it.copy(runningMinutes = it.runningMinutes + 1)
-        }
-    }
-
-    fun decreaseSet() {
-        _intervalSettingFlow.update {
-            it.copy(setCount = (it.setCount - 1).coerceAtLeast(1))
-        }
-    }
-
-    fun decreaseWalkingMinute() {
-        _intervalSettingFlow.update {
-            it.copy(walkingMinutes = (it.walkingMinutes - 1).coerceAtLeast(1))
-        }
-    }
-
-    fun decreaseRunningMinute() {
-        _intervalSettingFlow.update {
-            it.copy(runningMinutes = (it.runningMinutes - 1).coerceAtLeast(1))
-        }
+    fun setRunningMinute(runningMinute: Int) {
+        _runningMinuteFlow.value = runningMinute
     }
 
     fun saveIntervalSettings() {
         viewModelScope.launch {
-            updateIntervalSettingUseCase(intervalSettingFlow.value).onSuccess {
+            val intervalSetting = IntervalSetting(
+                setCount = setCountFlow.value,
+                walkingMinutes = walkingMinuteFlow.value,
+                runningMinutes = runningMinuteFlow.value
+            )
+            updateIntervalSettingUseCase(intervalSetting).onSuccess {
                 musicPlayer.setInterval(it)
             }
         }

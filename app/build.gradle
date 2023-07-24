@@ -6,6 +6,7 @@ plugins {
     id 'androidx.navigation.safeargs.kotlin'
 }
 
+
 android {
     namespace 'com.ddodang.intervalmusicspeedchanger'
     compileSdk rootProject.ext.compileSdk
@@ -39,6 +40,11 @@ android {
         viewBinding true
         dataBinding true
     }
+
+    packagingOptions {
+        exclude 'META-INF/DEPENDENCIES'
+    }
+
 }
 
 dependencies {
@@ -63,4 +69,8 @@ dependencies {
     implementation(project(":local"))
     implementation(project(":remote"))
     implementation(project(":common"))
+}
+
+kapt {
+    correctErrorTypes true
 }

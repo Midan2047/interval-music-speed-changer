@@ -15,6 +15,13 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+
+
+        def localProperties = new Properties()
+        localProperties.load(new FileInputStream(rootProject.file("local.properties")))
+        buildConfigField "String", "YOUTUBE_API_KEY", '"' + localProperties['YOUTUBE_API_KEY'] + '"'
+        buildConfigField "String", "RAPID_API_KEY", '"' + localProperties['RAPID_API_KEY'] + '"'
+        buildConfigField "String", "RAPID_API_HOST", '"' + localProperties['RAPID_API_HOST'] + '"'
     }
 
     buildTypes {

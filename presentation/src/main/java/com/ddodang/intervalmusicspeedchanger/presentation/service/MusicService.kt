@@ -18,9 +18,10 @@ import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.coroutineScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.receiver.AudioBroadcastReceiver
-import com.ddodang.intervalmusicspeedchanger.presentation.ui.main.MainActivity
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.MainActivity
 import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -61,7 +62,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             Constants.ACTION.PREVIOUS -> playPreviousMusic()
             Constants.ACTION.CLOSE -> finishService()
         }
-        println(intent.action)
+        println("action : ${intent.action}")
         return START_NOT_STICKY
     }
 
@@ -85,11 +86,8 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         createNotificationChannel()
         val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val pendingIntent =
             PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
-        } else {
-            PendingIntent.getActivity(this, 0, notificationIntent, 0)
-        }
 
         val remoteView = createRemoteView()
 
@@ -97,27 +95,32 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             .setSmallIcon(R.drawable.ic_play)
             .setCustomContentView(remoteView)
             .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setSilent(true)
             .build()
 
-        lifecycle.coroutineScope.launchWhenStarted {
+        lifecycle.coroutineScope.launch {
             launch {
-                musicPlayer.isPlayingFlow.collect { isPlaying ->
-                    println("Music Playing Toggled : $isPlaying")
-                    if (isPlaying) {
-                        remoteView.setImageViewResource(R.id.imageButton_playPause_notification, R.drawable.ic_pause)
-                    } else {
-                        remoteView.setImageViewResource(R.id.imageButton_playPause_notification, R.drawable.ic_play)
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    musicPlayer.isPlayingFlow.collect { isPlaying ->
+                        println("Music Playing Toggled : $isPlaying")
+                        if (isPlaying) {
+                            remoteView.setImageViewResource(R.id.imageButton_playPause_notification, R.drawable.ic_pause)
+                        } else {
+                            remoteView.setImageViewResource(R.id.imageButton_playPause_notification, R.drawable.ic_play)
+                        }
+                        notifyNotificationChanged(notification)
                     }
-                    notifyNotificationChanged(notification)
                 }
             }
             launch {
-                musicPlayer.currentPlayingMusicFlow.collect { currentMusic ->
-                    println("Playing Music Changed : ${currentMusic.title}")
-                    remoteView.setTextViewText(R.id.textView_title_notification, currentMusic.title)
-                    remoteView.setTextViewText(R.id.textView_singer_notification, currentMusic.artist)
-                    notifyNotificationChanged(notification)
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    musicPlayer.currentPlayingMusicFlow.collect { currentMusic ->
+                        println("Playing Music Changed : ${currentMusic?.title}")
+                        remoteView.setTextViewText(R.id.textView_title_notification, currentMusic?.title)
+                        remoteView.setTextViewText(R.id.textView_singer_notification, currentMusic?.artist)
+                        notifyNotificationChanged(notification)
+                    }
                 }
             }
         }
@@ -133,63 +136,30 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     private fun createRemoteView(): RemoteViews {
         val remoteView = RemoteViews("com.ddodang.intervalmusicspeedchanger", R.layout.notification_music)
 
-        val playToggleIntent: PendingIntent
-        val forwardIntent: PendingIntent
-        val rewindIntent: PendingIntent
-        val closeIntent: PendingIntent
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            playToggleIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.TOGGLE_PLAY },
-                PendingIntent.FLAG_IMMUTABLE
-            )
-            forwardIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.NEXT },
-                PendingIntent.FLAG_IMMUTABLE
-            )
-            rewindIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.PREVIOUS },
-                PendingIntent.FLAG_IMMUTABLE
-            )
-            closeIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.CLOSE },
-                PendingIntent.FLAG_IMMUTABLE
-            )
-        } else {
-
-            playToggleIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.TOGGLE_PLAY },
-                0
-            )
-            forwardIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.NEXT },
-                0
-            )
-            rewindIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.PREVIOUS },
-                0
-            )
-            closeIntent = PendingIntent.getService(
-                this,
-                0,
-                Intent(this, MusicService::class.java).apply { action = Constants.ACTION.CLOSE },
-                0
-            )
-        }
+        val playToggleIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, MusicService::class.java).apply { action = Constants.ACTION.TOGGLE_PLAY },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val forwardIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, MusicService::class.java).apply { action = Constants.ACTION.NEXT },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val rewindIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, MusicService::class.java).apply { action = Constants.ACTION.PREVIOUS },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val closeIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, MusicService::class.java).apply { action = Constants.ACTION.CLOSE },
+            PendingIntent.FLAG_IMMUTABLE
+        )
 
         remoteView.setOnClickPendingIntent(R.id.imageButton_playPause_notification, playToggleIntent)
         remoteView.setOnClickPendingIntent(R.id.imageButton_forward_notification, forwardIntent)
@@ -232,6 +202,6 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
         }
     }
 
-    override fun getLifecycle(): Lifecycle = lifecycleRegistry
+    override val lifecycle: Lifecycle = lifecycleRegistry
 
 }

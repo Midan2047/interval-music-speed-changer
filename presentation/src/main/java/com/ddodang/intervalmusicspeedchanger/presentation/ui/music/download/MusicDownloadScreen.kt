@@ -1,0 +1,304 @@
+package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.download
+
+import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.MarqueeAnimationMode
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.material.Icon
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Devices
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.ddodang.intervalmusicspeedchanger.domain.model.DownloadState
+import com.ddodang.intervalmusicspeedchanger.domain.model.YouTubeSearchResult
+import com.ddodang.intervalmusicspeedchanger.presentation.R
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.ErrorMessageDialog
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.MusicDownloadDialog
+import java.math.RoundingMode
+import java.text.DecimalFormat
+
+@Composable
+fun MusicDownloadScreen(
+    onBackPressed: () -> Unit,
+) {
+    val viewModel = hiltViewModel<MusicDownloadViewModel>()
+    val youtubeSearchResult by viewModel.videoSearchResultList.collectAsState()
+    val musicDownloadState by viewModel.downloadedState.collectAsState()
+
+    MusicDownloadScreen(
+        youtubeSearchResult = youtubeSearchResult,
+        musicDownloadState = musicDownloadState,
+        onSearch = { searchKeyword -> viewModel.search(searchKeyword) },
+        onVideoToExtractSelected = { result -> viewModel.download(result) },
+        onProgressDone = { viewModel.downloadDone() }
+    )
+    BackHandler(enabled = true, onBack = onBackPressed)
+}
+
+@Composable
+private fun MusicDownloadScreen(
+    youtubeSearchResult: List<YouTubeSearchResult>,
+    musicDownloadState: DownloadState?,
+    onSearch: (String) -> Unit,
+    onVideoToExtractSelected: (YouTubeSearchResult) -> Unit,
+    onProgressDone: () -> Unit,
+) {
+    ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+        val (textFieldRef, dialogRef, resultListRef) = createRefs()
+        SearchTextField(
+            onSearch = onSearch,
+            modifier = Modifier
+                .border(
+                    color = colorResource(id = R.color.main_pink),
+                    width = 1.dp,
+                )
+                .padding(5.dp)
+                .constrainAs(textFieldRef) {
+                    width = Dimension.fillToConstraints
+                    height = Dimension.wrapContent
+                    linkTo(parent.start, parent.end, startMargin = 15.dp, endMargin = 15.dp)
+                    linkTo(parent.top, resultListRef.top, topMargin = 15.dp, bottomMargin = 15.dp)
+                }
+        )
+        YouTubeSearchResultList(
+            results = youtubeSearchResult,
+            onVideoToExtractSelected = onVideoToExtractSelected,
+            modifier = Modifier.constrainAs(resultListRef) {
+                height = Dimension.fillToConstraints
+                linkTo(parent.start, parent.end)
+                linkTo(textFieldRef.bottom, parent.bottom)
+            }
+        )
+
+        if (musicDownloadState != null) {
+            val progress by musicDownloadState.downloadProgressState.collectAsState()
+            val error by musicDownloadState.errorState.collectAsState()
+            val totalBytes by musicDownloadState.totalByte.collectAsState()
+            val currentBytes by musicDownloadState.downloadedByteState.collectAsState()
+
+
+            if (error != null) {
+                Dialog(onDismissRequest = {}) {
+                    ErrorMessageDialog(
+                        errorMessage = error?.message ?: "에러가 발생해따!!!",
+                        onConfirm = onProgressDone,
+                        modifier = Modifier.constrainAs(dialogRef) {
+                            linkTo(parent.start, parent.end)
+                            linkTo(parent.top, parent.bottom)
+                        }
+                    )
+                }
+            } else if (progress == 100) {
+                onProgressDone()
+            } else {
+                Dialog(
+                    onDismissRequest = {},
+                ) {
+                    MusicDownloadDialog(
+                        downloadProgress = progress,
+                        downloadProgressMessage = "${progress}%(${(currentBytes.toDouble() / 1024 / 1024).toRoundedString(2)}MB / ${
+                            (totalBytes.toDouble() / 1024 / 1024).toRoundedString(
+                                2
+                            )
+                        }MB )",
+                        modifier = Modifier.constrainAs(dialogRef) {
+                            linkTo(parent.start, parent.end)
+                            linkTo(parent.top, parent.bottom)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun Double.toRoundedString(decimalPoint: Int): String {
+    val decimalFormat = DecimalFormat("#.${"#".repeat(decimalPoint)}")
+    decimalFormat.roundingMode = RoundingMode.FLOOR
+    return decimalFormat.format(this)
+}
+
+@Composable
+fun SearchTextField(
+    onSearch: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var text by rememberSaveable { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+    BasicTextField(
+        value = text,
+        onValueChange = {
+            text = it
+        },
+        singleLine = true,
+        keyboardActions = KeyboardActions(
+            onDone = {
+                focusManager.clearFocus()
+                onSearch(text)
+            }
+        ),
+        modifier = modifier,
+        decorationBox = { innerTextField ->
+            ConstraintLayout(modifier = Modifier.fillMaxWidth()) {
+                val (placeHolderRef, innerTextRef, iconRef) = createRefs()
+                if (text.isEmpty()) {
+                    Text(
+                        text = "검색어를 입력하세요",
+                        color = Color(0xA0000000),
+                        modifier = Modifier.constrainAs(placeHolderRef) {
+                            linkTo(parent.start, parent.end)
+                            linkTo(parent.top, parent.bottom)
+                            width = Dimension.fillToConstraints
+                        }
+                    )
+                }
+                Row(modifier = Modifier.constrainAs(innerTextRef) {
+                    linkTo(parent.start, iconRef.start)
+                    linkTo(parent.top, parent.bottom)
+                    width = Dimension.fillToConstraints
+                    height = Dimension.wrapContent
+                }) {
+                    innerTextField()
+                }
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "검색 버튼",
+                    modifier = Modifier.constrainAs(iconRef) {
+                        linkTo(innerTextRef.end, parent.end)
+                        linkTo(parent.top, parent.bottom)
+                        width = Dimension.ratio("1:1")
+                        height = Dimension.wrapContent
+                    }
+                )
+            }
+
+        }
+    )
+
+}
+
+@Composable
+fun YouTubeSearchResultList(
+    results: List<YouTubeSearchResult>,
+    onVideoToExtractSelected: (YouTubeSearchResult) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(modifier = modifier) {
+        items(
+            items = results,
+            key = { videoInfo -> videoInfo.videoId },
+            itemContent = { result ->
+                YouTubeSearchResultItem(
+                    youTubeSearchResult = result,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onVideoToExtractSelected(result)
+                        }
+                )
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun YouTubeSearchResultItem(
+    youTubeSearchResult: YouTubeSearchResult,
+    modifier: Modifier = Modifier,
+) {
+    ConstraintLayout(modifier = modifier) {
+        val (thumbnailRef, titleRef) = createRefs()
+        AsyncImage(
+            model = youTubeSearchResult.thumbnail,
+            contentDescription = "Album Title",
+            modifier = Modifier
+                .padding(5.dp)
+                .clip(CircleShape)
+                .constrainAs(thumbnailRef) {
+                    width = Dimension.value(50.dp)
+                    height = Dimension.ratio("1:1")
+                    start.linkTo(parent.start)
+                    linkTo(parent.top, parent.bottom)
+                },
+            placeholder = debugPlaceholder(debugPreview = R.drawable.ikmyung_profile)
+        )
+
+        Text(
+            text = youTubeSearchResult.title,
+            modifier = Modifier
+                .basicMarquee(
+                    iterations = Int.MAX_VALUE,
+                    animationMode = MarqueeAnimationMode.Immediately,
+                    initialDelayMillis = 0,
+                    delayMillis = 0
+                )
+                .constrainAs(titleRef) {
+                    width = Dimension.fillToConstraints
+                    linkTo(thumbnailRef.end, parent.end, startMargin = 5.dp, endMargin = 5.dp)
+                    linkTo(parent.top, parent.bottom)
+                }
+        )
+    }
+}
+
+@Preview(device = Devices.PIXEL_4)
+@Composable
+fun Preview() {
+    Surface {
+        MusicDownloadScreen(
+            youtubeSearchResult = List(10) {
+                YouTubeSearchResult(
+                    "$it",
+                    "익명이는 익명익명",
+                    "https://scontent-ssn1-1.xx.fbcdn.net/v/t39.30808-6/301695561_554393220031753_7691574438003420149_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=09cbfe&_nc_ohc=M6IbwKUFqVIAX-FlCde&_nc_ht=scontent-ssn1-1.xx&oh=00_AfBrPCNny2bRfb6DiVEsfwtmnV2dMveXTIitQ75tjgk9yQ&oe=64894605"
+                )
+            },
+            musicDownloadState = null,
+            onSearch = {},
+            onVideoToExtractSelected = {},
+            onProgressDone = {}
+        )
+    }
+}
+
+@Composable
+fun debugPlaceholder(@DrawableRes debugPreview: Int) =
+    if (LocalInspectionMode.current) {
+        painterResource(id = debugPreview)
+    } else {
+        null
+    }

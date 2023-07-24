@@ -16,6 +16,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
+import java.net.URLDecoder
 import javax.inject.Inject
 
 internal class MusicLocalDataSourceImpl @Inject constructor(
@@ -41,7 +42,7 @@ internal class MusicLocalDataSourceImpl @Inject constructor(
                         ?: ""
                 MusicData(
                     id = file.absolutePath.toHashSet().joinToString(""),
-                    title = title,
+                    title = URLDecoder.decode(title, "UTF-8"),
                     artist = artist,
                     duration = duration,
                     location = file.absolutePath

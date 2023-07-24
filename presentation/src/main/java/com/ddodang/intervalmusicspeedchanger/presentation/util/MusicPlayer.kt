@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.os.Build
 import android.os.PowerManager
 import com.ddodang.intervalmusicspeedchanger.common.extensions.getOrDefault
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
@@ -28,10 +29,10 @@ class MusicPlayer @Inject constructor(
     private var mediaPlayer: MediaPlayer? = null
 
     private var playList: List<Music> = emptyList()
-    private val _currentPlayingMusicFlow = MutableStateFlow(Music("", "", "", "", ""))
+    private val _currentPlayingMusicFlow: MutableStateFlow<Music?> = MutableStateFlow(null)
     val currentPlayingMusicFlow = _currentPlayingMusicFlow.asStateFlow()
 
-    private val currentPlayingMusic: Music
+    private val currentPlayingMusic: Music?
         get() = currentPlayingMusicFlow.value
 
     private val _isPlayingFlow = MutableStateFlow(false)
@@ -59,7 +60,11 @@ class MusicPlayer @Inject constructor(
         setInterval(interval)
         if (mediaPlayer == null) {
             setMusic(musicInfo)
-            context.startService(Intent(context, MusicService::class.java))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(Intent(context, MusicService::class.java))
+            } else {
+                context.startService(Intent(context, MusicService::class.java))
+            }
         }
     }
 
@@ -69,7 +74,7 @@ class MusicPlayer @Inject constructor(
         intervalSet = interval.setCount
     }
 
-    private fun setMusic(musicInfo: Music) {
+    private fun setMusic(musicInfo: Music?) {
         if (isPlaying) stopMusic()
         _currentPlayingMusicFlow.value = musicInfo
         mediaPlayer = MediaPlayer().apply {
@@ -92,7 +97,7 @@ class MusicPlayer @Inject constructor(
                 mediaPlayer.reset()
                 true
             }
-            setDataSource(musicInfo.location)
+            setDataSource(musicInfo?.location)
             prepareAsync()
             setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
         }
@@ -168,12 +173,12 @@ class MusicPlayer @Inject constructor(
         _isPlayingFlow.value = false
     }
 
-    private fun getNextMusic(): Music {
+    private fun getNextMusic(): Music? {
         val nextIndex = (playList.indexOf(currentPlayingMusic) + 1) % playList.size
         return playList.getOrDefault(nextIndex, currentPlayingMusic)
     }
 
-    private fun getPreviousMusic(): Music {
+    private fun getPreviousMusic(): Music? {
         val previousIndex =
             (playList.indexOf(currentPlayingMusic) + playList.size - 1) % playList.size
         return playList.getOrDefault(previousIndex, currentPlayingMusic)

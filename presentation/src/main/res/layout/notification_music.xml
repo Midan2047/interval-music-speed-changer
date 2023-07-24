@@ -60,6 +60,7 @@
         android:layout_height="40dp"
         android:background="@color/transparent"
         android:src="@drawable/ic_close"
-        android:tint="@color/gray50" />
+        android:tint="@color/gray50"
+        tools:ignore="UseAppTint" />
 
 </LinearLayout>

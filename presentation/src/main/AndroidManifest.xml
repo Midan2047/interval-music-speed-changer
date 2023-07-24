@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.ddodang.intervalmusicspeedchanger.presentation">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
 
     <application>
         <activity
-            android:name=".ui.main.MainActivity"
+            android:name=".ui.MainActivity"
             android:exported="true"
             android:launchMode="singleInstance">
             <intent-filter>
@@ -12,8 +12,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <receiver android:name=".receiver.AudioBroadcastReceiver"/>
+        <receiver android:name=".receiver.AudioBroadcastReceiver" />
         <service
             android:name=".service.MusicService"
             android:enabled="true"
