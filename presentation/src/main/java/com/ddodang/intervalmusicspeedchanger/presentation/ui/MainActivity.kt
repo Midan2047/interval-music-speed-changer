@@ -33,9 +33,6 @@ class MainActivity : AppCompatActivity() {
                     composable(Screen.Settings.route) {
                         SettingsScreen(onBackPressed = { navController.popBackStack(Screen.Settings.route, inclusive = true) })
                     }
-                    composable(Screen.MusicPlay.route) {
-                        MusicPlayScreen(onBackPressed = { navController.popBackStack(Screen.MusicPlay.route, inclusive = true) })
-                    }
                 }
             }
         }

@@ -14,7 +14,7 @@ import coil.request.ImageRequest
 import coil.size.Size
 
 @Composable
-fun GifImage(modifier: Modifier, @RawRes gifResId: Int) {
+fun GifImage(@RawRes gifResId: Int, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val imageLoader = ImageLoader
         .Builder(context)

@@ -4,11 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
-import com.ddodang.intervalmusicspeedchanger.domain.usecase.AddMusicUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.DeleteMusicUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchIntervalSettingUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchMusicListUseCase
-import com.ddodang.intervalmusicspeedchanger.presentation.model.LoadingState
 import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,18 +25,14 @@ class MusicListViewModel @Inject constructor(
     private val _musicListFlow: MutableStateFlow<List<Music>> = MutableStateFlow(emptyList())
     val musicListFlow = _musicListFlow.asStateFlow()
 
-    private val _isRefreshingFlow: MutableStateFlow<Boolean> = MutableStateFlow(true)
+    private val _isRefreshingFlow: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isRefreshingFlow = _isRefreshingFlow.asStateFlow()
 
-    private val _loadingFlow: MutableStateFlow<LoadingState> = MutableStateFlow(LoadingState.NotShowing)
+    val currentMusicFlow = musicPlayer.currentPlayingMusicFlow
 
-    init {
-        loadMusicList()
-    }
-
-    fun loadMusicList() {
+    fun loadMusicList(doSilent: Boolean = false) {
         viewModelScope.launch {
-            _isRefreshingFlow.value = true
+            _isRefreshingFlow.value = true && !doSilent
             fetchMusicListUseCase().onSuccess { musicList ->
                 _musicListFlow.value = musicList
             }
@@ -48,11 +42,9 @@ class MusicListViewModel @Inject constructor(
 
     fun deleteMusic(music: Music) {
         viewModelScope.launch {
-            _loadingFlow.value = LoadingState.Show("음악을 삭제하는 중입니다.")
             deleteMusicUseCase(music.location).onSuccess { musicList ->
                 _musicListFlow.value = musicList
             }
-            _loadingFlow.value = LoadingState.NotShowing
         }
     }
 

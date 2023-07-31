@@ -58,8 +58,8 @@ class MusicPlayer @Inject constructor(
 
     fun initialize(musicInfo: Music, interval: IntervalSetting) {
         setInterval(interval)
+        setMusic(musicInfo)
         if (mediaPlayer == null) {
-            setMusic(musicInfo)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(Intent(context, MusicService::class.java))
             } else {

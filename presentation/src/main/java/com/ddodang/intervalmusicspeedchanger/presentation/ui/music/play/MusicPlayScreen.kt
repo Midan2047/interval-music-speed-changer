@@ -5,38 +5,47 @@ import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
+import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.ConstraintSet
 import androidx.constraintlayout.compose.Dimension
+import androidx.constraintlayout.compose.ExperimentalMotionApi
+import androidx.constraintlayout.compose.MotionLayout
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.component.GifImage
+import com.ddodang.intervalmusicspeedchanger.presentation.util.retrieveThumbnailFromFile
 
 @Composable
 fun MusicPlayScreen(
     onBackPressed: () -> Unit,
+    progress: Float,
 ) {
     val viewModel = hiltViewModel<MusicPlayViewModel>()
     val isPlaying by viewModel.isPlayingFlow.collectAsStateWithLifecycle()
@@ -45,25 +54,28 @@ fun MusicPlayScreen(
     MusicPlayScreen(
         isPlaying = isPlaying,
         currentPlayingMusic = currentPlayingMusic,
+        progress = progress,
         modifier = Modifier.fillMaxSize()
     )
-    BackHandler(enabled = true, onBack = onBackPressed)
+    BackHandler(enabled = (progress == 0f), onBack = onBackPressed)
 }
 
 @Composable
 private fun MusicPlayScreen(
     isPlaying: Boolean,
     currentPlayingMusic: Music?,
+    progress: Float,
     modifier: Modifier = Modifier,
 ) {
-    Surface(color = colorResource(id = R.color.sub_pink)) {
+    Surface(modifier = Modifier.padding(0.dp)) {
         if (currentPlayingMusic == null) {
-            MusicNullScreen(modifier)
+            MusicNullScreen(modifier = modifier)
         } else {
-            MusicPlayingScreen(
-                isPlaying,
-                currentPlayingMusic,
-                modifier
+            MusicPlayingScreenWithMusic(
+                isPlaying = isPlaying,
+                currentPlayingMusic = currentPlayingMusic,
+                progress = progress,
+                modifier = modifier
             )
         }
     }
@@ -96,28 +108,32 @@ private fun MusicNullScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMotionApi::class)
 @Composable
-private fun MusicPlayingScreen(
+private fun MusicPlayingScreenWithMusic(
     isPlaying: Boolean,
     currentPlayingMusic: Music,
+    progress: Float,
     modifier: Modifier = Modifier,
 ) {
-    ConstraintLayout(modifier = modifier) {
-        val (imageRef, titleRef, singerRef, playingControllerRef) = createRefs()
-
-        GifImage(
-            gifResId = R.raw.ikmyung_dance,
-            modifier = Modifier.constrainAs(imageRef) {
-                width = Dimension.percent(0.8f)
-                height = Dimension.ratio("1:1")
-                linkTo(parent.start, parent.end)
-                linkTo(parent.top, titleRef.top)
-            }
+    MotionLayout(
+        start = startConstraintSet(),
+        end = endConstraintSet(),
+        progress = progress,
+        modifier = modifier,
+    ) {
+        Image(
+            bitmap = retrieveThumbnailFromFile(filePath = currentPlayingMusic.location),
+            contentDescription = "",
+            modifier = Modifier
+                .layoutId("dancing_machine_ikmyung")
+                .padding(0.dp)
         )
         Text(
             text = currentPlayingMusic.title,
-            fontSize = TextUnit(28f, TextUnitType.Sp),
+            style = LocalTextStyle.current.copy(
+                fontSize = (28f - (12f * progress)).sp
+            ),
             maxLines = 1,
             modifier = Modifier
                 .basicMarquee(
@@ -126,47 +142,42 @@ private fun MusicPlayingScreen(
                     initialDelayMillis = 0,
                     delayMillis = 0
                 )
-                .constrainAs(titleRef) {
-                    linkTo(parent.start, parent.end)
-                    linkTo(imageRef.bottom, playingControllerRef.top)
-                }
+                .layoutId("music_title")
         )
         Text(
             text = currentPlayingMusic.artist,
-            fontSize = TextUnit(14f, TextUnitType.Sp),
-            modifier = Modifier.constrainAs(singerRef) {
-                linkTo(parent.start, parent.end)
-                top.linkTo(titleRef.bottom)
-            }
+            style = LocalTextStyle.current.copy(
+                fontSize = (14f - (2f * progress)).sp
+            ),
+            modifier = Modifier.layoutId("music_artist")
         )
 
         MusicController(
             isPlaying = isPlaying,
-            modifier = Modifier.constrainAs(playingControllerRef) {
-                width = Dimension.fillToConstraints
-                linkTo(parent.start, parent.end)
-                linkTo(titleRef.bottom, parent.bottom)
-            }
+            progress = progress,
+            modifier = Modifier.layoutId("music_controller")
         )
     }
 }
 
+@OptIn(ExperimentalMotionApi::class)
 @Composable
 private fun MusicController(
     isPlaying: Boolean,
-    modifier: Modifier,
+    progress: Float,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
-    ConstraintLayout(modifier = modifier) {
-        val (shuffleRef, previousRef, playStopRef, nextRef, repeatRef) = createRefs()
-
+    MotionLayout(
+        start = musicPlayerStartConstraintSet(),
+        end = musicPlayerEndConstraintSet(),
+        progress = progress,
+        modifier = modifier,
+    ) {
         IconButton(
             onClick = { },
-            modifier = Modifier.constrainAs(shuffleRef) {
-                linkTo(parent.start, previousRef.start)
-                linkTo(parent.top, parent.bottom)
-            }
+            modifier = Modifier.layoutId("button_shuffle")
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_shuffle),
@@ -176,10 +187,7 @@ private fun MusicController(
         }
         IconButton(
             onClick = { if (!isPreview) playPreviousMusic(context) },
-            modifier = Modifier.constrainAs(previousRef) {
-                linkTo(shuffleRef.end, playStopRef.start)
-                linkTo(parent.top, parent.bottom)
-            }
+            modifier = Modifier.layoutId("button_previous")
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_fast_rewind),
@@ -190,10 +198,7 @@ private fun MusicController(
 
         IconButton(
             onClick = { if (!isPreview) togglePlay(context) },
-            modifier = Modifier.constrainAs(playStopRef) {
-                linkTo(previousRef.end, nextRef.start)
-                linkTo(parent.top, parent.bottom)
-            }
+            modifier = Modifier.layoutId("button_play")
         ) {
             val icon = if (isPlaying) ImageVector.vectorResource(id = R.drawable.ic_pause)
             else ImageVector.vectorResource(id = R.drawable.ic_play)
@@ -208,10 +213,7 @@ private fun MusicController(
 
         IconButton(
             onClick = { if (!isPreview) playNextMusic(context) },
-            modifier = Modifier.constrainAs(nextRef) {
-                linkTo(playStopRef.end, repeatRef.start)
-                linkTo(parent.top, parent.bottom)
-            }
+            modifier = Modifier.layoutId("button_next")
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_fast_forward),
@@ -223,10 +225,7 @@ private fun MusicController(
 
         IconButton(
             onClick = { },
-            modifier = Modifier.constrainAs(repeatRef) {
-                linkTo(nextRef.end, parent.end)
-                linkTo(parent.top, parent.bottom)
-            }
+            modifier = Modifier.layoutId("button_repeat")
         ) {
             Icon(
                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_loop),
@@ -274,6 +273,147 @@ private fun togglePlay(context: Context) {
     }
 }
 
+private fun startConstraintSet() = ConstraintSet {
+    val imageViewRef = createRefFor("dancing_machine_ikmyung")
+    val titleRef = createRefFor("music_title")
+    val singerRef = createRefFor("music_artist")
+    val controllerRef = createRefFor("music_controller")
+    constrain(imageViewRef) {
+        width = Dimension.percent(0.8f)
+        height = Dimension.ratio("1:1")
+        linkTo(parent.start, parent.end)
+        linkTo(parent.top, titleRef.top)
+    }
+
+    constrain(titleRef) {
+        width = Dimension.preferredWrapContent
+        linkTo(parent.start, parent.end)
+        linkTo(imageViewRef.bottom, controllerRef.top)
+    }
+
+    constrain(singerRef) {
+        width = Dimension.preferredWrapContent
+        linkTo(parent.start, parent.end)
+        top.linkTo(titleRef.bottom)
+    }
+
+    constrain(controllerRef) {
+        width = Dimension.fillToConstraints
+        linkTo(parent.start, parent.end)
+        linkTo(titleRef.bottom, parent.bottom)
+    }
+}
+
+private fun endConstraintSet(): ConstraintSet = ConstraintSet {
+    val imageViewRef = createRefFor("dancing_machine_ikmyung")
+    val titleRef = createRefFor("music_title")
+    val singerRef = createRefFor("music_artist")
+    val controllerRef = createRefFor("music_controller")
+    constrain(imageViewRef) {
+        width = Dimension.value(60.dp)
+        height = Dimension.value(60.dp)
+        start.linkTo(parent.start)
+        linkTo(parent.top, parent.bottom, bias = 0f)
+    }
+
+    constrain(titleRef) {
+        width = Dimension.preferredWrapContent
+        linkTo(imageViewRef.end, controllerRef.start, startMargin = 5.dp, bias = 0f)
+        linkTo(imageViewRef.top, singerRef.top)
+    }
+
+    constrain(singerRef) {
+        width = Dimension.preferredWrapContent
+        linkTo(imageViewRef.end, controllerRef.start, startMargin = 5.dp, bias = 0f)
+        linkTo(titleRef.bottom, imageViewRef.bottom)
+    }
+
+    constrain(controllerRef) {
+        width = Dimension.wrapContent
+        height = Dimension.value(60.dp)
+        end.linkTo(parent.end)
+        top.linkTo(imageViewRef.top)
+    }
+}
+
+private fun musicPlayerStartConstraintSet(): ConstraintSet = ConstraintSet {
+    val shuffleRef = createRefFor("button_shuffle")
+    val previousRef = createRefFor("button_previous")
+    val playRef = createRefFor("button_play")
+    val nextRef = createRefFor("button_next")
+    val repeatRef = createRefFor("button_repeat")
+
+    constrain(shuffleRef) {
+        width = Dimension.value(32.dp)
+        height = Dimension.value(32.dp)
+        linkTo(parent.start, previousRef.start)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(previousRef) {
+        width = Dimension.value(32.dp)
+        height = Dimension.value(32.dp)
+        linkTo(shuffleRef.end, playRef.start)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(playRef) {
+        width = Dimension.value(32.dp)
+        height = Dimension.value(32.dp)
+        linkTo(previousRef.end, nextRef.start)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(nextRef) {
+        width = Dimension.value(32.dp)
+        height = Dimension.value(32.dp)
+        linkTo(playRef.end, repeatRef.start)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(repeatRef) {
+        width = Dimension.value(32.dp)
+        height = Dimension.value(32.dp)
+        linkTo(nextRef.end, parent.end)
+        linkTo(parent.top, parent.bottom)
+    }
+}
+
+private fun musicPlayerEndConstraintSet(): ConstraintSet = ConstraintSet {
+    val shuffleRef = createRefFor("button_shuffle")
+    val previousRef = createRefFor("button_previous")
+    val playRef = createRefFor("button_play")
+    val nextRef = createRefFor("button_next")
+    val repeatRef = createRefFor("button_repeat")
+
+    constrain(shuffleRef) {
+        width = Dimension.value(0.dp)
+        height = Dimension.value(0.dp)
+        end.linkTo(previousRef.start)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(previousRef) {
+        width = Dimension.value(24.dp)
+        height = Dimension.value(24.dp)
+        end.linkTo(playRef.start)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(playRef) {
+        width = Dimension.value(24.dp)
+        height = Dimension.value(24.dp)
+        end.linkTo(nextRef.start)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(nextRef) {
+        width = Dimension.value(24.dp)
+        height = Dimension.value(24.dp)
+        end.linkTo(parent.end)
+        linkTo(parent.top, parent.bottom)
+    }
+    constrain(repeatRef) {
+        width = Dimension.value(0.dp)
+        height = Dimension.value(0.dp)
+        linkTo(nextRef.end, parent.end)
+        linkTo(parent.top, parent.bottom)
+    }
+}
+
 @Preview
 @Composable
 private fun Preview() {
@@ -281,6 +421,7 @@ private fun Preview() {
         MusicPlayScreen(
             isPlaying = true,
             currentPlayingMusic = Music("", "노미", "또당또당", "", ""),
+            progress = 0f,
             modifier = Modifier.fillMaxSize()
         )
     }
@@ -292,7 +433,8 @@ private fun PreviewMusicNull() {
     Surface {
         MusicPlayScreen(
             isPlaying = false,
-            currentPlayingMusic = null,
+            currentPlayingMusic = Music("", "노미", "또당또당", "", ""),
+            progress = 1f,
             modifier = Modifier.fillMaxSize()
         )
     }

@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.BottomSheetScaffold
+import androidx.compose.material.BottomSheetValue
 import androidx.compose.material.DismissDirection
 import androidx.compose.material.DismissState
 import androidx.compose.material.DismissValue
@@ -37,12 +39,15 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material.rememberBottomSheetScaffoldState
+import androidx.compose.material.rememberBottomSheetState
 import androidx.compose.material.rememberDismissState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -50,9 +55,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -68,17 +73,21 @@ import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.common.extensions.finishApp
 import com.ddodang.intervalmusicspeedchanger.presentation.model.Screen
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.ErrorMessageDialog
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.music.play.MusicPlayScreen
+import com.ddodang.intervalmusicspeedchanger.presentation.util.retrieveThumbnailFromFile
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterialApi::class)
 @Composable
 fun MusicListScreen(
     onNavigate: (Screen) -> Unit,
 ) {
     val viewModel = hiltViewModel<MusicListViewModel>()
-    val musicList by viewModel.musicListFlow.collectAsState()
+    val musicList by viewModel.musicListFlow.collectAsStateWithLifecycle()
+    val currentMusic by viewModel.currentMusicFlow.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshingFlow.collectAsStateWithLifecycle()
     var permissionRefused by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
@@ -91,29 +100,67 @@ fun MusicListScreen(
         rememberPermissionState(permission = Manifest.permission.POST_NOTIFICATIONS)
     } else null
 
+    val coroutineScope = rememberCoroutineScope()
+    val bottomSheetScaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberBottomSheetState(
+            initialValue = BottomSheetValue.Collapsed,
+        )
+    )
+
     SideEffect {
+        viewModel.loadMusicList(doSilent = true)
+    }
+
+
+    LaunchedEffect(key1 = notificationPermission?.status?.isGranted) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermission?.let {
-                if(!it.status.isGranted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                if (!it.status.isGranted) launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
     if (permissionRefused) {
         ErrorMessageDialog(errorMessage = "알림을 보내야 해요..!", onConfirm = { (context as? Activity)?.finishApp() })
     }
-
-    MusicListScreen(
-        musicList = musicList,
-        isRefreshing = isRefreshing,
-        onRefresh = { viewModel.loadMusicList() },
-        onMusicAddButtonClicked = { onNavigate(Screen.Download) },
-        onSettingsButtonClicked = { onNavigate(Screen.Settings) },
-        onMusicDelete = { music -> viewModel.deleteMusic(music) },
-        onMusicSelected = { music ->
-            viewModel.setMusic(music)
-            onNavigate(Screen.MusicPlay)
+    var height by rememberSaveable { mutableStateOf(0) }
+    BottomSheetScaffold(
+        sheetPeekHeight = if (currentMusic == null) 0.dp else 60.dp,
+        sheetContent = {
+            val progress = with(LocalDensity.current) {
+                bottomSheetScaffoldState.bottomSheetState.offset.value / (height - 60.dp.toPx())
+            }
+            println(progress)
+            MusicPlayScreen(
+                onBackPressed = {
+                    if (progress < 1f) {
+                        coroutineScope.launch {
+                            bottomSheetScaffoldState.bottomSheetState.collapse()
+                        }
+                    }
+                },
+                progress = progress
+            )
         },
-    )
+        scaffoldState = bottomSheetScaffoldState,
+        modifier = Modifier.onGloballyPositioned {
+            height = it.size.height
+        }
+    ) {
+        MusicListScreen(
+            musicList = musicList,
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.loadMusicList() },
+            onMusicAddButtonClicked = { onNavigate(Screen.Download) },
+            onSettingsButtonClicked = { onNavigate(Screen.Settings) },
+            onMusicDelete = { music -> viewModel.deleteMusic(music) },
+            onMusicSelected = { music ->
+                viewModel.setMusic(music)
+                coroutineScope.launch {
+                    bottomSheetScaffoldState.bottomSheetState.expand()
+                }
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -308,8 +355,9 @@ fun MusicItem(
                 )
         ) {
             val (imageRef, titleRef, singerRef) = createRefs()
+
             Image(
-                bitmap = ImageBitmap.imageResource(id = R.drawable.ikmyung_profile),
+                bitmap = retrieveThumbnailFromFile(music.location),
                 contentDescription = "프로필 이미지",
                 modifier = Modifier
                     .size(40.dp)
