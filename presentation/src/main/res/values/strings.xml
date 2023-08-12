@@ -12,4 +12,5 @@
     <string name="path">경로</string>
     <string name="path_somewhere">경로어딘가</string>
     <string name="go_back_list">리스트로 돌아가기</string>
+    <string name="mm_ss">%02d:%02d</string>
 </resources>

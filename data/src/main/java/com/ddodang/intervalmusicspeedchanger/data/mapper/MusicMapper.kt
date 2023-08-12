@@ -6,7 +6,11 @@ import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 
 internal fun MusicData.toDomain() = Music(
-    id = id, artist = artist, title = title, location = location, duration = duration
+    id = id,
+    artist = artist,
+    title = title,
+    location = location,
+    durationInMillis = durationInMillis,
 )
 
 internal fun IntervalSettingData.toDomain() = IntervalSetting(

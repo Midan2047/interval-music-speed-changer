@@ -3,6 +3,7 @@ package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.list
 import android.Manifest
 import android.app.Activity
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
@@ -43,10 +44,11 @@ import androidx.compose.material.rememberBottomSheetScaffoldState
 import androidx.compose.material.rememberBottomSheetState
 import androidx.compose.material.rememberDismissState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,9 +57,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,14 +73,17 @@ import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.common.extensions.finishApp
 import com.ddodang.intervalmusicspeedchanger.presentation.model.Screen
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.ErrorMessageDialog
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.music.play.MusicPlayScreen
-import com.ddodang.intervalmusicspeedchanger.presentation.util.retrieveThumbnailFromFile
+import com.ddodang.intervalmusicspeedchanger.presentation.util.retrieveThumbnailBitmapFromFile
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -90,6 +99,7 @@ fun MusicListScreen(
     val currentMusic by viewModel.currentMusicFlow.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshingFlow.collectAsStateWithLifecycle()
     var permissionRefused by rememberSaveable { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (!it) {
@@ -107,8 +117,19 @@ fun MusicListScreen(
         )
     )
 
-    SideEffect {
-        viewModel.loadMusicList(doSilent = true)
+
+    DisposableEffect(key1 = lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                viewModel.loadMusicList(true)
+            }
+
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
 
@@ -119,6 +140,7 @@ fun MusicListScreen(
             }
         }
     }
+
     if (permissionRefused) {
         ErrorMessageDialog(errorMessage = "알림을 보내야 해요..!", onConfirm = { (context as? Activity)?.finishApp() })
     }
@@ -127,17 +149,9 @@ fun MusicListScreen(
         sheetPeekHeight = if (currentMusic == null) 0.dp else 60.dp,
         sheetContent = {
             val progress = with(LocalDensity.current) {
-                bottomSheetScaffoldState.bottomSheetState.offset.value / (height - 60.dp.toPx())
+                bottomSheetScaffoldState.bottomSheetState.offset.value / (height.toDp() - 60.dp).toPx()
             }
-            println(progress)
             MusicPlayScreen(
-                onBackPressed = {
-                    if (progress < 1f) {
-                        coroutineScope.launch {
-                            bottomSheetScaffoldState.bottomSheetState.collapse()
-                        }
-                    }
-                },
                 progress = progress
             )
         },
@@ -160,6 +174,16 @@ fun MusicListScreen(
                 }
             },
         )
+    }
+
+    BackHandler {
+        if (bottomSheetScaffoldState.bottomSheetState.isExpanded) {
+            coroutineScope.launch {
+                bottomSheetScaffoldState.bottomSheetState.collapse()
+            }
+        } else {
+            (context as? Activity)?.finish()
+        }
     }
 }
 
@@ -355,9 +379,10 @@ fun MusicItem(
                 )
         ) {
             val (imageRef, titleRef, singerRef) = createRefs()
+            val albumArt = remember { retrieveThumbnailBitmapFromFile(filePath = music.location) }
 
             Image(
-                bitmap = retrieveThumbnailFromFile(music.location),
+                bitmap = albumArt?.asImageBitmap() ?: ImageBitmap.imageResource(id = R.drawable.ikmyung_profile),
                 contentDescription = "프로필 이미지",
                 modifier = Modifier
                     .size(40.dp)
@@ -408,7 +433,7 @@ fun Preview() {
                 id = it.toString(),
                 artist = "익명이",
                 title = "익명이는 익명익명 Pt.$it ".repeat(it + 1),
-                duration = "12분16초",
+                durationInMillis = 185600,
                 location = ""
             )
         },

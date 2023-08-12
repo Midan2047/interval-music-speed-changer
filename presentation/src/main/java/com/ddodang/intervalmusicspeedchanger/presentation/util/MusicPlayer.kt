@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
-import android.os.Build
 import android.os.PowerManager
 import com.ddodang.intervalmusicspeedchanger.common.extensions.getOrDefault
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
@@ -38,6 +37,9 @@ class MusicPlayer @Inject constructor(
     private val _isPlayingFlow = MutableStateFlow(false)
     val isPlayingFlow = _isPlayingFlow.asStateFlow()
 
+    private val _playTimeMillisFlow = MutableStateFlow(0)
+    val playTimeMillisFlow = _playTimeMillisFlow.asStateFlow()
+
     private val isPlaying: Boolean
         get() = isPlayingFlow.value
 
@@ -57,15 +59,12 @@ class MusicPlayer @Inject constructor(
     }
 
     fun initialize(musicInfo: Music, interval: IntervalSetting) {
+        if (mediaPlayer == null) {
+            context.startForegroundService(Intent(context, MusicService::class.java))
+        }
         setInterval(interval)
         setMusic(musicInfo)
-        if (mediaPlayer == null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(Intent(context, MusicService::class.java))
-            } else {
-                context.startService(Intent(context, MusicService::class.java))
-            }
-        }
+
     }
 
     fun setInterval(interval: IntervalSetting) {
@@ -91,9 +90,7 @@ class MusicPlayer @Inject constructor(
                 setMusic(getNextMusic())
                 completedMediaPlayer.release()
             }
-            setOnErrorListener { mediaPlayer, what, extra ->
-                println("what? $what")
-                println("extra $extra")
+            setOnErrorListener { mediaPlayer, _, _ ->
                 mediaPlayer.reset()
                 true
             }
@@ -135,7 +132,7 @@ class MusicPlayer @Inject constructor(
         intervalJob = CoroutineScope(Dispatchers.Default).launch {
             while (currentTime < intervalSet * (intervalWalking + intervalRunning)) {
                 while (currentTime % (intervalWalking + intervalRunning) < intervalWalking) {
-                    println(currentTime)
+                    _playTimeMillisFlow.value = mediaPlayer?.currentPosition ?: 0
                     delay(1000L)
                     currentTime += 1
                     if (!isPlaying) intervalJob?.cancel()
@@ -145,7 +142,7 @@ class MusicPlayer @Inject constructor(
                 }
 
                 while (currentTime % (intervalWalking + intervalRunning) < intervalWalking + intervalRunning) {
-                    println(currentTime)
+                    _playTimeMillisFlow.value = mediaPlayer?.currentPosition ?: 0
                     delay(1000L)
                     currentTime += 1
                     if (!isPlaying) intervalJob?.cancel()
@@ -171,6 +168,14 @@ class MusicPlayer @Inject constructor(
         mediaPlayer?.release()
         mediaPlayer = null
         _isPlayingFlow.value = false
+    }
+
+    fun setMusicPosition(positionInMillis: Int) {
+        runCatching {
+            mediaPlayer?.seekTo(positionInMillis)
+        }.onSuccess {
+            _playTimeMillisFlow.value = positionInMillis
+        }
     }
 
     private fun getNextMusic(): Music? {

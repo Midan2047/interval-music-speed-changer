@@ -38,13 +38,13 @@ internal class MusicLocalDataSourceImpl @Inject constructor(
                     metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
                         ?: "알수 없는 가수"
                 val duration =
-                    metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                        ?: ""
+                    metadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toIntOrNull()
+                        ?: 0
                 MusicData(
                     id = file.absolutePath.toHashSet().joinToString(""),
                     title = URLDecoder.decode(title, "UTF-8"),
                     artist = artist,
-                    duration = duration,
+                    durationInMillis = duration,
                     location = file.absolutePath
                 )
             } ?: emptyList()
