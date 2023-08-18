@@ -11,11 +11,15 @@ internal class YouTubeRepositoryImpl @Inject constructor(
     private val remote: YouTubeRemoteDataSource,
 ) : YouTubeRepository {
 
-    override suspend fun searchYouTubeByKeyword(keyword: String): Result<List<YouTubeSearchResult>> {
-        return remote.fetchSearchResult(keyword).map { searchedList ->
-            searchedList.map { searchResultData ->
-                searchResultData.toDomain()
-            }
+    override suspend fun searchYouTubeByKeyword(keyword: String): Result<YouTubeSearchResult> {
+        return remote.fetchSearchResult(keyword).map { searchResultData ->
+            searchResultData.toDomain()
+        }
+    }
+
+    override suspend fun loadMoreVideo(keyword: String,nextPageToken: String): Result<YouTubeSearchResult> {
+        return remote.loadMoreVideo(keyword, nextPageToken).map { searchResultData ->
+            searchResultData.toDomain()
         }
     }
 

@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -22,6 +24,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +66,7 @@ fun MusicDownloadScreen(
         musicDownloadState = musicDownloadState,
         onSearch = { searchKeyword -> viewModel.search(searchKeyword) },
         onVideoToExtractSelected = { result -> viewModel.download(result) },
+        onScrollReachEnd = { viewModel.loadMore() },
         onProgressDone = { viewModel.downloadDone() }
     )
     BackHandler(enabled = true, onBack = onBackPressed)
@@ -70,10 +74,11 @@ fun MusicDownloadScreen(
 
 @Composable
 private fun MusicDownloadScreen(
-    youtubeSearchResult: List<YouTubeSearchResult>,
+    youtubeSearchResult: List<YouTubeSearchResult.VideoInfo>,
     musicDownloadState: DownloadState?,
     onSearch: (String) -> Unit,
-    onVideoToExtractSelected: (YouTubeSearchResult) -> Unit,
+    onVideoToExtractSelected: (YouTubeSearchResult.VideoInfo) -> Unit,
+    onScrollReachEnd: () -> Unit,
     onProgressDone: () -> Unit,
 ) {
     ConstraintLayout(modifier = Modifier.fillMaxSize()) {
@@ -96,6 +101,7 @@ private fun MusicDownloadScreen(
         YouTubeSearchResultList(
             results = youtubeSearchResult,
             onVideoToExtractSelected = onVideoToExtractSelected,
+            onScrollReachEnd = onScrollReachEnd,
             modifier = Modifier.constrainAs(resultListRef) {
                 height = Dimension.fillToConstraints
                 linkTo(parent.start, parent.end)
@@ -212,14 +218,27 @@ fun SearchTextField(
 
 @Composable
 fun YouTubeSearchResultList(
-    results: List<YouTubeSearchResult>,
-    onVideoToExtractSelected: (YouTubeSearchResult) -> Unit,
+    results: List<YouTubeSearchResult.VideoInfo>,
+    onVideoToExtractSelected: (YouTubeSearchResult.VideoInfo) -> Unit,
+    onScrollReachEnd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(modifier = modifier) {
+    val scrollState = rememberLazyListState()
+
+    LaunchedEffect(key1 = scrollState.isScrolledToEnd()) {
+        println("effect Changed! ${scrollState.isScrolledToEnd()}")
+        if (scrollState.isScrolledToEnd()) {
+            onScrollReachEnd()
+        }
+    }
+
+
+    LazyColumn(
+        modifier = modifier,
+        state = scrollState
+    ) {
         items(
             items = results,
-            key = { videoInfo -> videoInfo.videoId },
             itemContent = { result ->
                 YouTubeSearchResultItem(
                     youTubeSearchResult = result,
@@ -234,10 +253,12 @@ fun YouTubeSearchResultList(
     }
 }
 
+private fun LazyListState.isScrolledToEnd() = layoutInfo.visibleItemsInfo.lastOrNull()?.index == layoutInfo.totalItemsCount - 1
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun YouTubeSearchResultItem(
-    youTubeSearchResult: YouTubeSearchResult,
+    youTubeSearchResult: YouTubeSearchResult.VideoInfo,
     modifier: Modifier = Modifier,
 ) {
     ConstraintLayout(modifier = modifier) {
@@ -281,7 +302,7 @@ fun Preview() {
     Surface {
         MusicDownloadScreen(
             youtubeSearchResult = List(10) {
-                YouTubeSearchResult(
+                YouTubeSearchResult.VideoInfo(
                     "$it",
                     "익명이는 익명익명",
                     "https://scontent-ssn1-1.xx.fbcdn.net/v/t39.30808-6/301695561_554393220031753_7691574438003420149_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=09cbfe&_nc_ohc=M6IbwKUFqVIAX-FlCde&_nc_ht=scontent-ssn1-1.xx&oh=00_AfBrPCNny2bRfb6DiVEsfwtmnV2dMveXTIitQ75tjgk9yQ&oe=64894605"
@@ -290,6 +311,7 @@ fun Preview() {
             musicDownloadState = null,
             onSearch = {},
             onVideoToExtractSelected = {},
+            onScrollReachEnd = {},
             onProgressDone = {}
         )
     }

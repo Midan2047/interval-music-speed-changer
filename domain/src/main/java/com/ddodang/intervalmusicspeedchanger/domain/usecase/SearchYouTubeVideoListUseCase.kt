@@ -8,7 +8,7 @@ class SearchYouTubeVideoListUseCase @Inject constructor(
     private val youTubeRepository: YouTubeRepository,
 ) {
 
-    suspend operator fun invoke(searchKeyword: String): Result<List<YouTubeSearchResult>> {
+    suspend operator fun invoke(searchKeyword: String): Result<YouTubeSearchResult> {
         return youTubeRepository.searchYouTubeByKeyword(searchKeyword)
     }
 }

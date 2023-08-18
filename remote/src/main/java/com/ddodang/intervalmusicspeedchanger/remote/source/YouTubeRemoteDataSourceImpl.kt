@@ -39,7 +39,7 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
             .build()
     }
 
-    override suspend fun fetchSearchResult(searchKey: String): Result<List<YouTubeSearchResultData>> = withContext(Dispatchers.IO) {
+    override suspend fun fetchSearchResult(searchKey: String): Result<YouTubeSearchResultData> = withContext(Dispatchers.IO) {
         runCatching {
             val search = youtube.search().list("id,snippet")
             search.setKey(apiKeyUtil.getYoutubeApiKey())
@@ -49,21 +49,57 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
                 .setRegionCode("KR")
                 .setOrder("viewCount")
                 .setTopicId("10")
-                .setFields("items(id/kind,id/videoId,snippet/title,snippet/thumbnails/default/url,snippet)")
-                .setMaxResults(25)
+                .setFields("items(id/kind,id/videoId,snippet/title,snippet/thumbnails/default/url,snippet),nextPageToken")
+                .setMaxResults(50)
                 .execute()
-                .items
-        }.map { searchResultList ->
-            println(searchResultList)
-            searchResultList.map { searchResult ->
-                YouTubeSearchResultData(
-                    searchResult.id.videoId,
-                    androidHtmlUtil.fromHtml(searchResult.snippet.title),
-                    (searchResult.snippet.thumbnails["default"] as? Thumbnail)?.url
-                )
-            }
+        }.map { searchResult ->
+            println(searchResult.items.size)
+            println(searchResult.nextPageToken)
+            YouTubeSearchResultData(
+                nextPageToken = searchResult.nextPageToken,
+                videoList = searchResult.items.map { videoInfo ->
+                    YouTubeSearchResultData.VideoInfo(
+                        videoInfo.id.videoId,
+                        androidHtmlUtil.fromHtml(videoInfo.snippet.title),
+                        (videoInfo.snippet.thumbnails["default"] as? Thumbnail)?.url
+                    )
+                }
+
+            )
+
         }.onFailure { error ->
             println(error)
+        }
+    }
+
+    override suspend fun loadMoreVideo(searchKey: String, nextPageToken: String): Result<YouTubeSearchResultData> = withContext(Dispatchers.IO) {
+        runCatching {
+            val search = youtube.search().list("id,snippet")
+            search.setKey(apiKeyUtil.getYoutubeApiKey())
+                .setQ(searchKey)
+                .setPageToken(nextPageToken)
+                .setOrder("date")
+                .setType("video")
+                .setRegionCode("KR")
+                .setOrder("viewCount")
+                .setTopicId("10")
+                .setFields("items(id/kind,id/videoId,snippet/title,snippet/thumbnails/default/url,snippet),nextPageToken")
+                .setMaxResults(50)
+                .execute()
+        }.map { searchResult ->
+            YouTubeSearchResultData(
+                nextPageToken = searchResult.nextPageToken,
+                videoList = searchResult.items.map { videoInfo ->
+                    YouTubeSearchResultData.VideoInfo(
+                        videoInfo.id.videoId,
+                        androidHtmlUtil.fromHtml(videoInfo.snippet.title),
+                        (videoInfo.snippet.thumbnails["default"] as? Thumbnail)?.url
+                    )
+                }
+
+            )
+        }.onFailure {
+            println(it)
         }
     }
 
