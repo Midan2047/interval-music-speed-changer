@@ -6,6 +6,11 @@ import com.ddodang.intervalmusicspeedchanger.domain.model.DownloadState
 import com.ddodang.intervalmusicspeedchanger.domain.model.YouTubeSearchResult
 
 internal fun YouTubeSearchResultData.toDomain() = YouTubeSearchResult(
+    nextPageToken = nextPageToken,
+    videoList = videoList.map { video -> video.toDomain() }
+)
+
+internal fun YouTubeSearchResultData.VideoInfo.toDomain() = YouTubeSearchResult.VideoInfo(
     videoId = videoId,
     title = title,
     thumbnail = thumbnailUrl

@@ -5,7 +5,8 @@ import com.ddodang.intervalmusicspeedchanger.domain.model.YouTubeSearchResult
 
 interface YouTubeRepository {
 
-    suspend fun searchYouTubeByKeyword(keyword: String): Result<List<YouTubeSearchResult>>
+    suspend fun searchYouTubeByKeyword(keyword: String): Result<YouTubeSearchResult>
+    suspend fun loadMoreVideo(keyword: String, nextPageToken: String): Result<YouTubeSearchResult>
 
     suspend fun extractYouTubeMusic(videoId: String, videoName: String): DownloadState
 }
