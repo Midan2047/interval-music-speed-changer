@@ -13,6 +13,7 @@
             </intent-filter>
         </activity>
         <receiver android:name=".receiver.AudioBroadcastReceiver" />
+        <receiver android:name=".receiver.NotificationDismissedReceiver"/>
         <service
             android:name=".service.MusicService"
             android:enabled="true"
