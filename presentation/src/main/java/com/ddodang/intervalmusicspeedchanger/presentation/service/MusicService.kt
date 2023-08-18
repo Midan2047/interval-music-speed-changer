@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
-import android.os.Build
 import android.os.IBinder
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
@@ -21,6 +20,7 @@ import androidx.lifecycle.coroutineScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.receiver.AudioBroadcastReceiver
+import com.ddodang.intervalmusicspeedchanger.presentation.receiver.NotificationDismissedReceiver
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.MainActivity
 import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
@@ -56,30 +56,14 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         when (intent.action) {
-            Constants.ACTION.TOGGLE_PLAY -> togglePlay()
-            Constants.ACTION.PAUSE -> pauseMusic()
-            Constants.ACTION.NEXT -> playNextMusic()
-            Constants.ACTION.PREVIOUS -> playPreviousMusic()
+            Constants.ACTION.TOGGLE_PLAY -> musicPlayer.togglePlay()
+            Constants.ACTION.PAUSE -> musicPlayer.pauseMusic()
+            Constants.ACTION.NEXT -> musicPlayer.playNextMusic()
+            Constants.ACTION.PREVIOUS -> musicPlayer.playPreviousMusic()
             Constants.ACTION.CLOSE -> finishService()
         }
         println("action : ${intent.action}")
         return START_NOT_STICKY
-    }
-
-    private fun togglePlay() {
-        musicPlayer.togglePlay()
-    }
-
-    private fun playNextMusic() {
-        musicPlayer.playNextMusic()
-    }
-
-    private fun pauseMusic() {
-        musicPlayer.pauseMusic()
-    }
-
-    private fun playPreviousMusic() {
-        musicPlayer.playPreviousMusic()
     }
 
     private fun initializeNotification() {
@@ -97,6 +81,9 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setSilent(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setDeleteIntent(createOnDismissedIntent(this, notificationId = Constants.ID.NOTIFICATION_ID))
             .build()
 
         lifecycle.coroutineScope.launch {
@@ -129,6 +116,13 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
 
     }
 
+    private fun createOnDismissedIntent(context: Context, notificationId: Int): PendingIntent {
+        val intent = Intent(context, NotificationDismissedReceiver::class.java)
+        intent.putExtra("com.ddodang.intervalmusicspeedchanger.notificationId", notificationId)
+
+        return PendingIntent.getBroadcast(context.applicationContext, notificationId, intent, PendingIntent.FLAG_IMMUTABLE)
+    }
+
     private fun notifyNotificationChanged(notification: Notification) {
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(Constants.ID.NOTIFICATION_ID, notification)
     }
@@ -154,17 +148,10 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             Intent(this, MusicService::class.java).apply { action = Constants.ACTION.PREVIOUS },
             PendingIntent.FLAG_IMMUTABLE
         )
-        val closeIntent = PendingIntent.getService(
-            this,
-            0,
-            Intent(this, MusicService::class.java).apply { action = Constants.ACTION.CLOSE },
-            PendingIntent.FLAG_IMMUTABLE
-        )
 
         remoteView.setOnClickPendingIntent(R.id.imageButton_playPause_notification, playToggleIntent)
         remoteView.setOnClickPendingIntent(R.id.imageButton_forward_notification, forwardIntent)
         remoteView.setOnClickPendingIntent(R.id.imageButton_rewind_notification, rewindIntent)
-        remoteView.setOnClickPendingIntent(R.id.imageButton_close_notification, closeIntent)
 
         return remoteView
     }
@@ -177,11 +164,9 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val serviceChannel = NotificationChannel(Constants.ID.CHANNEL_ID, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT)
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(serviceChannel)
-        }
+        val serviceChannel = NotificationChannel(Constants.ID.CHANNEL_ID, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT)
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(serviceChannel)
     }
 
     sealed class Constants {
