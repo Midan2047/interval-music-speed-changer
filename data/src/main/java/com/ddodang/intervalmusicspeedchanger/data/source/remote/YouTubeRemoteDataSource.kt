@@ -5,7 +5,9 @@ import com.ddodang.intervalmusicspeedchanger.data.model.YouTubeSearchResultData
 
 interface YouTubeRemoteDataSource {
 
-    suspend fun fetchSearchResult(searchKey: String): Result<List<YouTubeSearchResultData>>
+    suspend fun fetchSearchResult(searchKey: String): Result<YouTubeSearchResultData>
+
+    suspend fun loadMoreVideo(keyword: String,nextPageToken: String): Result<YouTubeSearchResultData>
 
     suspend fun extractYouTubeSound(videoId: String, videoName: String): DownloadStateData
 }
