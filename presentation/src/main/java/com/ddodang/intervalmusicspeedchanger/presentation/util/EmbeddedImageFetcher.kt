@@ -4,7 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 
-fun retrieveThumbnailBitmapFromFile(filePath: String): Bitmap? {
+fun retrieveThumbnailBitmapFromFile(filePath: String?): Bitmap? {
+    if (filePath == null) return null
     return runCatching {
         MediaMetadataRetriever().use { retriever ->
             retriever.setDataSource(filePath)
