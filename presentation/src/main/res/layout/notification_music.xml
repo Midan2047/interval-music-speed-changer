@@ -5,9 +5,16 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal">
 
+    <ImageView
+        android:id="@+id/imageView_albumImage_notification"
+        android:layout_width="40dp"
+        android:layout_height="match_parent"
+        android:scaleType="centerInside" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="match_parent"
+        android:layout_marginStart="5dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
@@ -52,15 +59,5 @@
         android:layout_height="40dp"
         android:background="@color/transparent"
         android:src="@drawable/ic_fast_forward" />
-
-
-    <ImageButton
-        android:id="@+id/imageButton_close_notification"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="@color/transparent"
-        android:src="@drawable/ic_close"
-        android:tint="@color/gray50"
-        tools:ignore="UseAppTint" />
 
 </LinearLayout>

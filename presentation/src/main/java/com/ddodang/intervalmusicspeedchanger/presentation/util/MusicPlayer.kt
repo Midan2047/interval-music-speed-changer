@@ -74,6 +74,7 @@ class MusicPlayer @Inject constructor(
     }
 
     private fun setMusic(musicInfo: Music?) {
+        val needPlay = mediaPlayer == null || isPlaying
         if (isPlaying) stopMusic()
         _currentPlayingMusicFlow.value = musicInfo
         mediaPlayer = MediaPlayer().apply {
@@ -84,7 +85,9 @@ class MusicPlayer @Inject constructor(
                     .build()
             )
             setOnPreparedListener {
-                startMusic()
+                if (needPlay) {
+                    startMusic()
+                }
             }
             setOnCompletionListener { completedMediaPlayer ->
                 setMusic(getNextMusic())
