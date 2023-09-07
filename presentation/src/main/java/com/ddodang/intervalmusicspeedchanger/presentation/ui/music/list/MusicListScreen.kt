@@ -2,6 +2,7 @@ package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.list
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -76,11 +77,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.common.extensions.finishApp
 import com.ddodang.intervalmusicspeedchanger.presentation.model.Screen
+import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.ErrorMessageDialog
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.music.play.MusicPlayScreen
 import com.ddodang.intervalmusicspeedchanger.presentation.util.retrieveThumbnailBitmapFromFile
@@ -246,6 +247,7 @@ private fun MusicListHeader(
 ) {
     ConstraintLayout(modifier = modifier.padding(vertical = 12.dp)) {
         val (headerTitleRef, settingButtonRef, addButtonRef) = createRefs()
+        val context = LocalContext.current
         Text(
             text = stringResource(id = R.string.list_wantToBe_playList),
             fontSize = TextUnit(18f, TextUnitType.Sp),
@@ -254,6 +256,9 @@ private fun MusicListHeader(
                 .constrainAs(headerTitleRef) {
                     top.linkTo(parent.top)
                     linkTo(parent.start, settingButtonRef.start, startMargin = 4.dp, endMargin = 4.dp, bias = 0f)
+                }
+                .clickable {
+                    context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.INTERVAL_DONE })
                 }
         )
 

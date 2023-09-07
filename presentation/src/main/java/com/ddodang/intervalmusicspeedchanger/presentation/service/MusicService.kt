@@ -1,5 +1,6 @@
 package com.ddodang.intervalmusicspeedchanger.presentation.service
 
+import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Intent
 import android.content.IntentFilter
@@ -55,21 +56,22 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             Constants.ACTION.NEXT -> musicPlayer.playNextMusic()
             Constants.ACTION.PREVIOUS -> musicPlayer.playPreviousMusic()
             Constants.ACTION.CLOSE -> finishService()
-            Constants.ACTION.SEEK_TO -> musicPlayer.setMusicPosition(intent.getLongExtra(Constants.PARAMETER.POSITION,0L).toInt())
+            Constants.ACTION.SEEK_TO -> musicPlayer.setMusicPosition(intent.getLongExtra(Constants.PARAMETER.POSITION, 0L).toInt())
+            Constants.ACTION.INTERVAL_DONE -> intervalDone()
         }
         println("action : ${intent.action}")
         return START_STICKY
     }
 
     private fun initializeNotification() {
-        musicNotification.createNotification()
+        musicNotification.createMusicPlayerNotification()
 
         lifecycle.coroutineScope.launch {
             launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    musicPlayer.isPlayingFlow.collect { isPlaying ->
-                        musicNotification.setRemoteViewMusicPlayState(isPlaying)
-                        startForeground(MusicNotification.NOTIFICATION_ID, musicNotification.createNotification())
+                    musicPlayer.musicPlayingInformationFlow.collect { musicPlayingInformation ->
+                        musicNotification.setMusicPlayingInformation(musicPlayingInformation)
+                        startForeground(MusicNotification.MUSIC_PLAYER_NOTIFICATION_ID, musicNotification.createMusicPlayerNotification())
                     }
                 }
             }
@@ -78,21 +80,31 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
                     musicPlayer.currentPlayingMusicFlow.collect { currentMusic ->
                         if (currentMusic != null) {
                             musicNotification.setRemoteViewMusicInfo(currentMusic)
-                            startForeground(MusicNotification.NOTIFICATION_ID, musicNotification.createNotification())
+                            startForeground(MusicNotification.MUSIC_PLAYER_NOTIFICATION_ID, musicNotification.createMusicPlayerNotification())
                         } else finishService()
                     }
                 }
             }
         }
-        startForeground(MusicNotification.NOTIFICATION_ID, musicNotification.createNotification())
+        startForeground(MusicNotification.MUSIC_PLAYER_NOTIFICATION_ID, musicNotification.createMusicPlayerNotification())
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
     }
 
     private fun finishService() {
+        finishMusicPlayNotification()
+        stopSelf()
+    }
+
+    private fun finishMusicPlayNotification() {
         musicPlayer.stopMusic()
         musicNotification.cancelNotification()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
-        stopSelf()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun intervalDone() {
+        finishMusicPlayNotification()
+        startForeground(MusicNotification.INTERVAL_DONE_NOTIFICATION_ID, musicNotification.createIntervalDoneNotification())
     }
 
     sealed class Constants {
@@ -105,6 +117,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             const val NEXT = "com.ddodang.intervalmusicspeedchager.action.NEXT"
             const val PREVIOUS = "com.ddodang.intervalmusicspeedchager.action.PREVIOUS"
             const val CLOSE = "com.ddodang.intervalmusicspeedchanger.action.CLOSE"
+            const val INTERVAL_DONE = "com.ddodang.intervalmusicspeedchanger.action.INTERVALDONE"
         }
 
         object PARAMETER : Constants() {

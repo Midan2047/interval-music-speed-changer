@@ -8,6 +8,7 @@ import android.os.PowerManager
 import com.ddodang.intervalmusicspeedchanger.common.extensions.getOrDefault
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
+import com.ddodang.intervalmusicspeedchanger.domain.model.MusicPlayingInformation
 import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,14 +36,17 @@ class MusicPlayer @Inject constructor(
     private val currentPlayingMusic: Music?
         get() = currentPlayingMusicFlow.value
 
-    private val _isPlayingFlow = MutableStateFlow(false)
-    val isPlayingFlow = _isPlayingFlow.asStateFlow()
-
-    private val _playTimeMillisFlow = MutableStateFlow(0)
-    val playTimeMillisFlow = _playTimeMillisFlow.asStateFlow()
+    private val _musicPlayingInformationFlow = MutableStateFlow(
+        MusicPlayingInformation(
+            isPlaying = false,
+            playTimeMillis = 0,
+            playbackSpeed = 1f
+        )
+    )
+    val musicPlayingInformationFlow = _musicPlayingInformationFlow.asStateFlow()
 
     private val isPlaying: Boolean
-        get() = isPlayingFlow.value
+        get() = musicPlayingInformationFlow.value.isPlaying
 
     private var intervalJob: Job? = null
         set(value) {
@@ -53,6 +58,9 @@ class MusicPlayer @Inject constructor(
     private var intervalWalking: Int = 1 * 60
     private var intervalSet: Int = 1
     private var currentTime: Int = 0
+
+    private val secondPerIntervalSet
+        get() = intervalWalking + intervalRunning
 
     fun setMusicList(musicList: List<Music>) {
         playList = musicList
@@ -125,7 +133,9 @@ class MusicPlayer @Inject constructor(
         if (!isPlaying) {
             mediaPlayer?.let {
                 it.start()
-                _isPlayingFlow.value = true
+                _musicPlayingInformationFlow.update { musicPlayingInformation ->
+                    musicPlayingInformation.copy(isPlaying = true)
+                }
             }
             startInterval()
         }
@@ -133,51 +143,64 @@ class MusicPlayer @Inject constructor(
 
     private fun startInterval() {
         intervalJob = CoroutineScope(Dispatchers.Default).launch {
-            while (currentTime < intervalSet * (intervalWalking + intervalRunning)) {
-                while (currentTime % (intervalWalking + intervalRunning) < intervalWalking) {
-                    _playTimeMillisFlow.value = mediaPlayer?.currentPosition ?: 0
-                    delay(1000L)
-                    currentTime += 1
-                    if (!isPlaying) intervalJob?.cancel()
-                }
-                mediaPlayer?.apply {
-                    playbackParams = playbackParams.setSpeed(2f)
-                }
-
-                while (currentTime % (intervalWalking + intervalRunning) < intervalWalking + intervalRunning) {
-                    _playTimeMillisFlow.value = mediaPlayer?.currentPosition ?: 0
-                    delay(1000L)
-                    currentTime += 1
-                    if (!isPlaying) intervalJob?.cancel()
-                }
-                mediaPlayer?.apply {
-                    playbackParams = playbackParams.setSpeed(1f)
+            while (currentTime < intervalSet * secondPerIntervalSet) {
+                setMusicProgressAndPlayingTime()
+                if (currentTime % secondPerIntervalSet == intervalWalking) {
+                    setPlaybackSpeed(2f)
+                } else if (currentTime % secondPerIntervalSet == 0) {
+                    setPlaybackSpeed(1f)
                 }
             }
             currentTime = 0
             intervalJob = null
-            context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.CLOSE })
+            context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.INTERVAL_DONE })
         }
+    }
+
+    private fun setPlaybackSpeed(playbackSpeed: Float) {
+        mediaPlayer?.apply {
+            playbackParams = playbackParams.setSpeed(playbackSpeed)
+            _musicPlayingInformationFlow.update { musicPlayingInformation ->
+                musicPlayingInformation.copy(playbackSpeed = playbackSpeed)
+            }
+        }
+    }
+
+    private suspend fun setMusicProgressAndPlayingTime() {
+        _musicPlayingInformationFlow.update { musicPlayingInformation ->
+            musicPlayingInformation.copy(
+                playTimeMillis = mediaPlayer?.currentPosition ?: 0
+            )
+        }
+        delay(1000L)
+        currentTime += 1
+        if (!isPlaying) intervalJob?.cancel()
     }
 
     fun pauseMusic() {
         mediaPlayer?.pause()
-        _isPlayingFlow.value = false
+        _musicPlayingInformationFlow.update { musicPlayingInformation ->
+            musicPlayingInformation.copy(isPlaying = false)
+        }
     }
 
     fun stopMusic() {
+        pauseMusic()
         mediaPlayer?.stop()
         mediaPlayer?.reset()
         mediaPlayer?.release()
         mediaPlayer = null
-        _isPlayingFlow.value = false
     }
 
     fun setMusicPosition(positionInMillis: Int) {
         runCatching {
             mediaPlayer?.seekTo(positionInMillis)
         }.onSuccess {
-            _playTimeMillisFlow.value = positionInMillis
+            _musicPlayingInformationFlow.update { musicPlayingInformation ->
+                musicPlayingInformation.copy(
+                    playTimeMillis = positionInMillis
+                )
+            }
         }
     }
 
