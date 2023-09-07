@@ -10,7 +10,7 @@ class NotificationDismissedReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context?, intent: Intent?) {
         val notificationId = intent?.extras?.getInt("com.ddodang.intervalmusicspeedchanger.notificationId")
-        if (notificationId == MusicNotification.NOTIFICATION_ID) {
+        if (notificationId == MusicNotification.MUSIC_PLAYER_NOTIFICATION_ID) {
             println("notification!")
             context?.startService(
                 Intent(context, MusicService::class.java).apply {
