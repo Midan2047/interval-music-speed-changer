@@ -2,6 +2,7 @@ package com.ddodang.intervalmusicspeedchanger.presentation.notiifcation
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -95,9 +96,6 @@ class MusicNotification @Inject constructor(
         .setDeleteIntent(createOnDismissedIntent(context, notificationId = MUSIC_PLAYER_NOTIFICATION_ID))
         .build()
 
-    fun setRemoteViewMusicPlayState(isPlaying: Boolean) {
-        setPlaybackState(state = if (isPlaying) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED)
-    }
 
     fun setRemoteViewMusicInfo(musicInfo: Music) {
         this.musicInfo = musicInfo
@@ -134,6 +132,9 @@ class MusicNotification @Inject constructor(
     }
 
     fun createNotificationChannel() {
+        val notificationChannelGroup = NotificationChannelGroup(CHANNEL_GROUP_ID, CHANNEL_GROUP_NAME)
+        NotificationManagerCompat.from(context).createNotificationChannelGroup(notificationChannelGroup)
+
         val notificationChannel = NotificationChannel(CHANNEL_ID, javaClass.name, NotificationManager.IMPORTANCE_HIGH).also {
             it.group = CHANNEL_GROUP_ID
         }

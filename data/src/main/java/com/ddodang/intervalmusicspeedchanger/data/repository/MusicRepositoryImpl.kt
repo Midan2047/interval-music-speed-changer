@@ -25,7 +25,5 @@ internal class MusicRepositoryImpl @Inject constructor(
     override suspend fun updateIntervalSettings(intervalSettings: IntervalSetting): Result<Unit> =
         local.updateIntervalSettings(intervalSettings.toData())
 
-    override suspend fun copyMusic(filePath: String): Result<Unit> = local.copyMusic(filePath)
-
     override suspend fun deleteMusic(filePath: String): Result<Unit> = local.deleteMusic(filePath)
 }

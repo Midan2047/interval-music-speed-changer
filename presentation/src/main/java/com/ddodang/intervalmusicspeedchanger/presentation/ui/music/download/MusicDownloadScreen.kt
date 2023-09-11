@@ -226,7 +226,6 @@ fun YouTubeSearchResultList(
     val scrollState = rememberLazyListState()
 
     LaunchedEffect(key1 = scrollState.isScrolledToEnd()) {
-        println("effect Changed! ${scrollState.isScrolledToEnd()}")
         if (scrollState.isScrolledToEnd()) {
             onScrollReachEnd()
         }

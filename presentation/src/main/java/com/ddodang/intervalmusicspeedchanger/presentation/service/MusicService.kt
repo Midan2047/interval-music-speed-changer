@@ -32,7 +32,6 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     private val receiver = AudioBroadcastReceiver()
     override fun onCreate() {
         super.onCreate()
-        println("Service Created")
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         initializeNotification()
         registerReceiver(receiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
@@ -41,7 +40,6 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     override fun onDestroy() {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         unregisterReceiver(receiver)
-        println("Service Destroyed")
         super.onDestroy()
     }
 
@@ -59,7 +57,6 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             Constants.ACTION.SEEK_TO -> musicPlayer.setMusicPosition(intent.getLongExtra(Constants.PARAMETER.POSITION, 0L).toInt())
             Constants.ACTION.INTERVAL_DONE -> intervalDone()
         }
-        println("action : ${intent.action}")
         return START_STICKY
     }
 

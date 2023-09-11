@@ -53,8 +53,6 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
                 .setMaxResults(50)
                 .execute()
         }.map { searchResult ->
-            println(searchResult.items.size)
-            println(searchResult.nextPageToken)
             YouTubeSearchResultData(
                 nextPageToken = searchResult.nextPageToken,
                 videoList = searchResult.items.map { videoInfo ->
@@ -64,11 +62,7 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
                         (videoInfo.snippet.thumbnails["default"] as? Thumbnail)?.url
                     )
                 }
-
             )
-
-        }.onFailure { error ->
-            println(error)
         }
     }
 
@@ -98,8 +92,6 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
                 }
 
             )
-        }.onFailure {
-            println(it)
         }
     }
 

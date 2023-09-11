@@ -2,9 +2,7 @@ package com.ddodang.intervalmusicspeedchanger.local.source
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
-import android.net.Uri
 import android.os.Environment
-import androidx.documentfile.provider.DocumentFile
 import com.ddodang.intervalmusicspeedchanger.data.model.IntervalSettingData
 import com.ddodang.intervalmusicspeedchanger.data.model.MusicData
 import com.ddodang.intervalmusicspeedchanger.data.source.local.MusicLocalDataSource
@@ -14,8 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileInputStream
-import java.io.FileNotFoundException
-import java.io.FileOutputStream
 import java.net.URLDecoder
 import javax.inject.Inject
 
@@ -48,8 +44,6 @@ internal class MusicLocalDataSourceImpl @Inject constructor(
                     location = file.absolutePath
                 )
             } ?: emptyList()
-        }.onFailure {
-            println(it)
         }
     }
 
@@ -73,37 +67,11 @@ internal class MusicLocalDataSourceImpl @Inject constructor(
             }
         }
 
-    override suspend fun copyMusic(fileUriPath: String): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                val inputFileUri = Uri.parse(fileUriPath)
-                val documentFile = DocumentFile.fromSingleUri(context, inputFileUri) ?: throw Exception("Not Document File")
-                val inputStream = context.contentResolver.openInputStream(inputFileUri) ?: throw FileNotFoundException()
-                val file =
-                    File(
-                        context.getExternalFilesDir(Environment.DIRECTORY_MUSIC),
-                        documentFile.name!!
-                    )
-                file.createNewFile()
-                val outputStream = FileOutputStream(file)
-                val buffer = ByteArray(1024)
-                while (true) {
-                    val length = inputStream.read(buffer)
-                    if (length <= 0) break
-                    outputStream.write(buffer, 0, length)
-                }
-                outputStream.close()
-                inputStream.close()
-                println("Copy Finished / ${file.absolutePath}")
-            }.onFailure {
-                println(it)
-            }
-        }
-
     override suspend fun deleteMusic(filePath: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val deleteFile = File(filePath)
             if (deleteFile.exists()) deleteFile.delete()
         }
     }
+
 }
