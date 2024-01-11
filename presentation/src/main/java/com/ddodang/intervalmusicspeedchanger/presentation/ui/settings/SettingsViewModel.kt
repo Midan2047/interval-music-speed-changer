@@ -28,6 +28,9 @@ class SettingsViewModel @Inject constructor(
     private val _runningMinuteFlow = MutableStateFlow(1)
     val runningMinuteFlow = _runningMinuteFlow.asStateFlow()
 
+    private val _showCallConfirmDialogFlow = MutableStateFlow(false)
+    val showCallConfirmDialogFlow = _showCallConfirmDialogFlow.asStateFlow()
+
     init {
         viewModelScope.launch {
             val intervalSetting = fetchIntervalSettingUseCase().getOrDefault(IntervalSetting(1, 1, 1))
@@ -60,6 +63,14 @@ class SettingsViewModel @Inject constructor(
                 musicPlayer.setInterval(it)
             }
         }
+    }
+
+    fun showCallConfirmDialog() {
+        _showCallConfirmDialogFlow.value = true
+    }
+
+    fun dismissCallConfirmDialog() {
+        _showCallConfirmDialogFlow.value = false
     }
 
 }

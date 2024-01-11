@@ -77,6 +77,7 @@ class MusicNotification @Inject constructor(
         .setContentIntent(createIntervalDoneContentPendingIntent())
         .setVisibility(Notification.VISIBILITY_PUBLIC)
         .setAutoCancel(true)
+        .setOngoing(false)
         .setDeleteIntent(createOnDismissedIntent(context, notificationId = MUSIC_PLAYER_NOTIFICATION_ID))
         .build()
 
@@ -95,7 +96,6 @@ class MusicNotification @Inject constructor(
         )
         .setDeleteIntent(createOnDismissedIntent(context, notificationId = MUSIC_PLAYER_NOTIFICATION_ID))
         .build()
-
 
     fun setRemoteViewMusicInfo(musicInfo: Music) {
         this.musicInfo = musicInfo

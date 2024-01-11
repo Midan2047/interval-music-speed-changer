@@ -9,12 +9,14 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Icon
@@ -25,6 +27,8 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -43,30 +47,65 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.component.GifImage
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.MessageDialogHeader
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun SettingsScreen(
     onBackPressed: () -> Unit,
 ) {
     val viewModel = hiltViewModel<SettingsViewModel>()
+    val isPreview = LocalInspectionMode.current
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (it) {
+            viewModel.showCallConfirmDialog()
+        } else {
+            Toast.makeText(context, "전화를 하려면 허락해줘요!", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val callPermission = rememberPermissionState(permission = Manifest.permission.CALL_PHONE)
 
     val setsCount by viewModel.setCountFlow.collectAsStateWithLifecycle()
     val walkPeriod by viewModel.walkingMinuteFlow.collectAsStateWithLifecycle()
     val runPeriod by viewModel.runningMinuteFlow.collectAsStateWithLifecycle()
+    val showCallConfirmDialog by viewModel.showCallConfirmDialogFlow.collectAsStateWithLifecycle()
 
     SettingsScreen(
         setsCount = setsCount,
         walkPeriod = walkPeriod,
         runPeriod = runPeriod,
+        showCallConfirmDialog = showCallConfirmDialog,
         onSetChange = { viewModel.setSetCount(it) },
         onWalkChange = { viewModel.setWalkingMinute(it) },
         onRunChange = { viewModel.setRunningMinute(it) },
         onSaveSettings = { viewModel.saveIntervalSettings() },
-        modifier = Modifier.fillMaxSize()
+        onCallButtonClicked = {
+            if (!isPreview) {
+                if (callPermission.status.isGranted) {
+                    viewModel.showCallConfirmDialog()
+                } else {
+                    launcher.launch(Manifest.permission.CALL_PHONE)
+                }
+            }
+        },
+        onCallConfirm = {
+            if (!isPreview) callMe(context)
+            viewModel.dismissCallConfirmDialog()
+        },
+        onCallCancel = {
+            viewModel.dismissCallConfirmDialog()
+        },
+        modifier = Modifier
+            .wrapContentHeight()
+            .fillMaxWidth()
     )
+
+
     BackHandler(enabled = true, onBack = onBackPressed)
 }
 
@@ -75,15 +114,19 @@ private fun SettingsScreen(
     setsCount: Int,
     walkPeriod: Int,
     runPeriod: Int,
+    showCallConfirmDialog: Boolean,
     onSetChange: (Int) -> Unit,
     onWalkChange: (Int) -> Unit,
     onRunChange: (Int) -> Unit,
     onSaveSettings: () -> Unit,
+    onCallButtonClicked: () -> Unit,
+    onCallConfirm: () -> Unit,
+    onCallCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface {
         ConstraintLayout(modifier = modifier) {
-            val (headerRef, settingRef, callMeButtonRef) = createRefs()
+            val (headerRef, settingRef, callMeButtonRef, callConfirmDialogRef) = createRefs()
             SettingsHeader(modifier = Modifier
                 .padding(10.dp)
                 .constrainAs(headerRef) {
@@ -109,12 +152,28 @@ private fun SettingsScreen(
             )
 
             CallMeButton(
+                onCallButtonClicked = onCallButtonClicked,
                 modifier = Modifier.constrainAs(callMeButtonRef) {
                     width = Dimension.fillToConstraints
+                    height = Dimension.wrapContent
                     linkTo(parent.start, parent.end)
                     linkTo(settingRef.bottom, parent.bottom)
                 }
             )
+
+            if (showCallConfirmDialog) {
+                CallConfirmDialog(
+                    onConfirm = onCallConfirm,
+                    onCancel = onCallCancel,
+                    modifier = Modifier
+                        .constrainAs(callConfirmDialogRef) {
+                            width = Dimension.percent(0.9f)
+                            linkTo(top = parent.top, bottom = parent.bottom)
+                            linkTo(start = parent.start, end = parent.end)
+                        }
+                        .shadow(elevation = 10.dp, shape = RoundedCornerShape(10.dp))
+                )
+            }
         }
     }
 }
@@ -305,27 +364,10 @@ private fun SettingsHeader(modifier: Modifier = Modifier) {
 @Composable
 private fun CallMeButton(
     modifier: Modifier = Modifier,
+    onCallButtonClicked: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        if (it) {
-            callMe(context)
-        } else {
-            Toast.makeText(context, "전화를 하려면 허락해줘요!", Toast.LENGTH_SHORT).show()
-        }
-    }
-    val callPermission = rememberPermissionState(permission = Manifest.permission.CALL_PHONE)
-    val isPreview = LocalInspectionMode.current
     Button(
-        onClick = {
-            if (!isPreview) {
-                if (callPermission.status.isGranted) {
-                    callMe(context)
-                } else {
-                    launcher.launch(Manifest.permission.CALL_PHONE)
-                }
-            }
-        },
+        onClick = onCallButtonClicked,
         elevation = null,
         colors = ButtonDefaults.buttonColors(
             backgroundColor = Color.Transparent
@@ -347,6 +389,89 @@ private fun CallMeButton(
     }
 }
 
+@Composable
+fun CallConfirmDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = Color.White,
+        modifier = modifier
+    ) {
+        ConstraintLayout(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .wrapContentHeight()
+                .fillMaxWidth()
+        ) {
+            val (headerRef, bodyRef) = createRefs()
+            MessageDialogHeader(
+                modifier = Modifier.constrainAs(headerRef) {
+                    linkTo(parent.start, parent.end)
+                    top.linkTo(parent.top)
+                    height = Dimension.wrapContent
+                    width = Dimension.fillToConstraints
+                },
+                title = "전화를 걸어주실 건가요!!!!"
+            )
+            MessageBody(
+                onConfirm = onConfirm,
+                onCancel = onCancel,
+                modifier = Modifier.constrainAs(bodyRef) {
+                    linkTo(parent.start, parent.end)
+                    top.linkTo(headerRef.bottom)
+                    height = Dimension.wrapContent
+                    width = Dimension.fillToConstraints
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun MessageBody(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    ConstraintLayout(modifier = modifier) {
+        val (imageRef, cancelRef, confirmButtonRef) = createRefs()
+        GifImage(
+            gifResId = R.raw.expecting_ikmyung,
+            modifier = Modifier.constrainAs(imageRef) {
+                width = Dimension.percent(0.4f)
+                height = Dimension.ratio("1:1")
+                linkTo(parent.start, parent.end)
+                linkTo(parent.top, cancelRef.top)
+            }
+        )
+        Text(
+            text = "아니요....!",
+            modifier = Modifier
+                .constrainAs(cancelRef) {
+                    end.linkTo(confirmButtonRef.start, margin = 10.dp)
+                    linkTo(imageRef.bottom, parent.bottom, topMargin = 5.dp, bottomMargin = 5.dp)
+                }
+                .clickable {
+                    onCancel()
+                }
+        )
+
+
+        OutlinedButton(
+            onClick = onConfirm,
+            colors = ButtonDefaults.buttonColors(Color.Transparent, colorResource(id = R.color.main_pink)),
+            modifier = Modifier.constrainAs(confirmButtonRef) {
+                end.linkTo(parent.end, margin = 10.dp)
+                linkTo(imageRef.bottom, parent.bottom, topMargin = 5.dp, bottomMargin = 5.dp)
+            }
+        ) {
+            Text(text = "네!")
+        }
+    }
+}
+
 private fun callMe(context: Context) {
     context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + "01090382047")))
 }
@@ -359,10 +484,14 @@ private fun Preview() {
             setsCount = 1,
             walkPeriod = 1,
             runPeriod = 1,
+            showCallConfirmDialog = false,
             onSetChange = {},
             onWalkChange = {},
             onRunChange = {},
             onSaveSettings = {},
+            onCallButtonClicked = {},
+            onCallConfirm = {},
+            onCallCancel = {},
             modifier = Modifier.fillMaxSize()
         )
     }
