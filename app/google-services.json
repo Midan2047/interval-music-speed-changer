@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "557683132041",
+    "project_id": "intervalmaker",
+    "storage_bucket": "intervalmaker.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:557683132041:android:8ffcdde46ae5fe79052858",
+        "android_client_info": {
+          "package_name": "com.ddodang.intervalmusicspeedchanger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYl4stwfzFBM4w1b6vaS9rk_pasUrSbTI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
