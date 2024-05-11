@@ -45,9 +45,9 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.ddodang.intervalmusicspeedchanger.domain.model.DownloadState
 import com.ddodang.intervalmusicspeedchanger.domain.model.YouTubeSearchResult
 import com.ddodang.intervalmusicspeedchanger.presentation.R
+import com.ddodang.intervalmusicspeedchanger.presentation.model.MusicDownloadStateItem
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.ErrorMessageDialog
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.MusicDownloadDialog
 import java.math.RoundingMode
@@ -59,11 +59,11 @@ fun MusicDownloadScreen(
 ) {
     val viewModel = hiltViewModel<MusicDownloadViewModel>()
     val youtubeSearchResult by viewModel.videoSearchResultList.collectAsState()
-    val musicDownloadState by viewModel.downloadedState.collectAsState()
-
+    val musicDownloadStateItem by viewModel.musicDownloadStateFlow.collectAsState()
+    println(musicDownloadStateItem)
     MusicDownloadScreen(
         youtubeSearchResult = youtubeSearchResult,
-        musicDownloadState = musicDownloadState,
+        musicDownloadStateItem = musicDownloadStateItem,
         onSearch = { searchKeyword -> viewModel.search(searchKeyword) },
         onVideoToExtractSelected = { result -> viewModel.download(result) },
         onScrollReachEnd = { viewModel.loadMore() },
@@ -75,7 +75,7 @@ fun MusicDownloadScreen(
 @Composable
 private fun MusicDownloadScreen(
     youtubeSearchResult: List<YouTubeSearchResult.VideoInfo>,
-    musicDownloadState: DownloadState?,
+    musicDownloadStateItem: MusicDownloadStateItem,
     onSearch: (String) -> Unit,
     onVideoToExtractSelected: (YouTubeSearchResult.VideoInfo) -> Unit,
     onScrollReachEnd: () -> Unit,
@@ -109,36 +109,28 @@ private fun MusicDownloadScreen(
             }
         )
 
-        if (musicDownloadState != null) {
-            val progress by musicDownloadState.downloadProgressState.collectAsState()
-            val error by musicDownloadState.errorState.collectAsState()
-            val totalBytes by musicDownloadState.totalByte.collectAsState()
-            val currentBytes by musicDownloadState.downloadedByteState.collectAsState()
+        musicDownloadStateItem.downloadError?.let {
+            Dialog(onDismissRequest = {}) {
+                ErrorMessageDialog(
+                    errorMessage = it.message ?: "에러가 발생해따!!!",
+                    onConfirm = onProgressDone,
+                    modifier = Modifier.constrainAs(dialogRef) {
+                        linkTo(parent.start, parent.end)
+                        linkTo(parent.top, parent.bottom)
+                    }
+                )
+            }
+        }
 
-
-            if (error != null) {
-                Dialog(onDismissRequest = {}) {
-                    ErrorMessageDialog(
-                        errorMessage = error?.message ?: "에러가 발생해따!!!",
-                        onConfirm = onProgressDone,
-                        modifier = Modifier.constrainAs(dialogRef) {
-                            linkTo(parent.start, parent.end)
-                            linkTo(parent.top, parent.bottom)
-                        }
-                    )
-                }
-            } else if (progress == 100) {
-                onProgressDone()
-            } else {
+        musicDownloadStateItem.downloadInformation?.let {
+            if (it.downloadedPercentage != 100) {
                 Dialog(
                     onDismissRequest = {},
                 ) {
                     MusicDownloadDialog(
-                        downloadProgress = progress,
-                        downloadProgressMessage = "${progress}%(${(currentBytes.toDouble() / 1024 / 1024).toRoundedString(2)}MB / ${
-                            (totalBytes.toDouble() / 1024 / 1024).toRoundedString(
-                                2
-                            )
+                        downloadProgress = it.downloadedPercentage,
+                        downloadProgressMessage = "${it.downloadedPercentage}%(${(it.downloadedByteLength.toDouble() / 1024 / 1024).toRoundedString(2)}MB / ${
+                            (it.contentLength.toDouble() / 1024 / 1024).toRoundedString(2)
                         }MB )",
                         modifier = Modifier.constrainAs(dialogRef) {
                             linkTo(parent.start, parent.end)
@@ -148,6 +140,7 @@ private fun MusicDownloadScreen(
                 }
             }
         }
+
     }
 }
 
@@ -307,7 +300,7 @@ fun Preview() {
                     "https://scontent-ssn1-1.xx.fbcdn.net/v/t39.30808-6/301695561_554393220031753_7691574438003420149_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=09cbfe&_nc_ohc=M6IbwKUFqVIAX-FlCde&_nc_ht=scontent-ssn1-1.xx&oh=00_AfBrPCNny2bRfb6DiVEsfwtmnV2dMveXTIitQ75tjgk9yQ&oe=64894605"
                 )
             },
-            musicDownloadState = null,
+            musicDownloadStateItem = MusicDownloadStateItem(null, null),
             onSearch = {},
             onVideoToExtractSelected = {},
             onScrollReachEnd = {},

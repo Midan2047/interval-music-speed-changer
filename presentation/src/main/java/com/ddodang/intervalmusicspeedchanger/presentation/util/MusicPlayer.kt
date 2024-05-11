@@ -136,24 +136,27 @@ class MusicPlayer @Inject constructor(
                 _musicPlayingInformationFlow.update { musicPlayingInformation ->
                     musicPlayingInformation.copy(isPlaying = true)
                 }
+                it.playbackParams = it.playbackParams.setSpeed(musicPlayingInformationFlow.value.playbackSpeed)
             }
             startInterval()
         }
     }
 
     private fun startInterval() {
-        intervalJob = CoroutineScope(Dispatchers.Default).launch {
-            while (currentTime < intervalSet * secondPerIntervalSet) {
-                setMusicProgressAndPlayingTime()
-                if (currentTime % secondPerIntervalSet == intervalWalking) {
-                    setPlaybackSpeed(2f)
-                } else if (currentTime % secondPerIntervalSet == 0) {
-                    setPlaybackSpeed(1f)
+        if (intervalJob == null) {
+            intervalJob = CoroutineScope(Dispatchers.Default).launch {
+                while (currentTime < intervalSet * secondPerIntervalSet) {
+                    setMusicProgressAndPlayingTime()
+                    if (currentTime % secondPerIntervalSet == intervalWalking) {
+                        setPlaybackSpeed(2f)
+                    } else if (currentTime % secondPerIntervalSet == 0) {
+                        setPlaybackSpeed(1f)
+                    }
                 }
+                currentTime = 0
+                intervalJob = null
+                context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.INTERVAL_DONE })
             }
-            currentTime = 0
-            intervalJob = null
-            context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.INTERVAL_DONE })
         }
     }
 
@@ -172,9 +175,10 @@ class MusicPlayer @Inject constructor(
                 playTimeMillis = mediaPlayer?.currentPosition ?: 0
             )
         }
-        delay(1000L)
+        do {
+            delay(1000L)
+        } while (!isPlaying)
         currentTime += 1
-        if (!isPlaying) intervalJob?.cancel()
     }
 
     fun pauseMusic() {

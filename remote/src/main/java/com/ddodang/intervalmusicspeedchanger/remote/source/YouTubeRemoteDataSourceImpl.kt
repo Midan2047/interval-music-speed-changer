@@ -1,5 +1,6 @@
 package com.ddodang.intervalmusicspeedchanger.remote.source
 
+import com.ddodang.intervalmusicspeedchanger.data.model.DownloadMusicStateData
 import com.ddodang.intervalmusicspeedchanger.data.model.DownloadStateData
 import com.ddodang.intervalmusicspeedchanger.data.model.YouTubeSearchResultData
 import com.ddodang.intervalmusicspeedchanger.data.source.remote.YouTubeRemoteDataSource
@@ -14,7 +15,10 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.youtube.YouTube
 import com.google.api.services.youtube.model.Thumbnail
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
@@ -110,7 +114,63 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
         downloadState.toData()
     }
 
-    private fun extractYouTubeSound(downloadState: DownloadStateDto, requestLink: String, musicName: String) {
+    override suspend fun extractYouTubeSoundFlow(videoId: String, videoName: String): Flow<DownloadMusicStateData> {
+        return flow {
+            runCatching {
+                rapidApiService.extractVideo(idCode = videoId, apiKey = apiKeyUtil.getRapidApiKey(), apiHost = apiKeyUtil.getRapidApiHost())
+            }.onFailure {
+                emit(DownloadMusicStateData.FetchMusicLinkFailed(it))
+            }.mapCatching {
+                Request.Builder().url(it.link!!).build()
+            }.onFailure {
+                emit(DownloadMusicStateData.InvalidLink)
+            }.mapCatching { request ->
+                extractYouTubeSound(request = request)
+            }.onFailure {
+                emit(DownloadMusicStateData.DownloadMusicFailed(it as? IOException))
+            }.mapCatching {
+                val contentLength = it.contentLength()
+                val inputStream = it.byteStream()
+                val musicDownloadModel = fileUtil.getFileDownloadModel(fileName = videoName)
+                val buffer = ByteArray(4096)
+                var bytesRead: Int
+                emit(DownloadMusicStateData.OnDownloadStartMusic(contentLength))
+
+                while (inputStream.read(buffer).also { byte -> bytesRead = byte } != -1) {
+                    musicDownloadModel.writeToFile(buffer, 0, bytesRead)
+                    emit(DownloadMusicStateData.OnDownloaded(bytesRead))
+                }
+                emit(DownloadMusicStateData.OnDownloadDoneMusic)
+            }.onFailure {
+                emit(DownloadMusicStateData.OnSaveFileFailed)
+            }
+        }
+    }
+
+    private suspend fun extractYouTubeSound(request: Request) =
+        suspendCancellableCoroutine { cancellableContinuation ->
+            OkHttpClient().newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    cancellableContinuation.resumeWith(Result.failure(e))
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    if (!response.isSuccessful) {
+                        cancellableContinuation.resumeWith(Result.failure(Exception("Unexpected response code :${response.code}")))
+                        return
+                    }
+                    val responseBody = response.body
+                    if (responseBody == null) {
+                        cancellableContinuation.resumeWith(Result.failure(Exception("Empty Body")))
+                        return
+                    }
+                    cancellableContinuation.resumeWith(Result.success(responseBody))
+                }
+
+            })
+        }
+
+    private fun extractYouTubeSound(downloadState: DownloadStateDto, requestLink: String, musicName: String) = runCatching {
         val request = Request.Builder().url(requestLink).build()
         OkHttpClient().newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
@@ -125,11 +185,8 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
                 val responseBody: ResponseBody? = response.body
                 if (responseBody != null) {
                     downloadState.totalByte.value = responseBody.contentLength()
-
                     val inputStream = responseBody.byteStream()
-
-
-                    try {
+                    runCatching {
                         val musicDownloadModel = fileUtil.getFileDownloadModel(fileName = musicName)
                         val buffer = ByteArray(4096)
                         var bytesRead: Int
@@ -146,8 +203,8 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
 
                         musicDownloadModel.close()
                         inputStream.close()
-                    } catch (e: Exception) {
-                        downloadState.errorState.value = e
+                    }.onFailure {
+                        downloadState.errorState.value = it
                     }
 
                 } else {
