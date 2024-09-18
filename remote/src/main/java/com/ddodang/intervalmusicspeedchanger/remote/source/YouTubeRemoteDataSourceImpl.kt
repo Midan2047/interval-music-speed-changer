@@ -15,8 +15,13 @@ import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.youtube.YouTube
 import com.google.api.services.youtube.model.Thumbnail
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -43,31 +48,30 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
             .build()
     }
 
-    override suspend fun fetchSearchResult(searchKey: String): Result<YouTubeSearchResultData> = withContext(Dispatchers.IO) {
-        runCatching {
-            val search = youtube.search().list("id,snippet")
-            search.setKey(apiKeyUtil.getYoutubeApiKey())
-                .setQ(searchKey)
-                .setOrder("date")
-                .setType("video")
-                .setRegionCode("KR")
-                .setOrder("viewCount")
-                .setTopicId("10")
-                .setFields("items(id/kind,id/videoId,snippet/title,snippet/thumbnails/default/url,snippet),nextPageToken")
-                .setMaxResults(50)
-                .execute()
-        }.map { searchResult ->
-            YouTubeSearchResultData(
-                nextPageToken = searchResult.nextPageToken,
-                videoList = searchResult.items.map { videoInfo ->
-                    YouTubeSearchResultData.VideoInfo(
-                        videoInfo.id.videoId,
-                        androidHtmlUtil.fromHtml(videoInfo.snippet.title),
-                        (videoInfo.snippet.thumbnails["default"] as? Thumbnail)?.url
-                    )
-                }
-            )
-        }
+    override suspend fun fetchSearchResult(searchKey: String): Flow<YouTubeSearchResultData> = flow {
+        val search = youtube.search().list("id,snippet")
+        val result = search.setKey(apiKeyUtil.getYoutubeApiKey())
+            .setQ(searchKey)
+            .setOrder("date")
+            .setType("video")
+            .setRegionCode("KR")
+            .setOrder("viewCount")
+            .setTopicId("10")
+            .setFields("items(id/kind,id/videoId,snippet/title,snippet/thumbnails/default/url,snippet),nextPageToken")
+            .setMaxResults(50)
+            .execute()
+        emit(result)
+    }.map { searchResult ->
+        YouTubeSearchResultData(
+            nextPageToken = searchResult.nextPageToken,
+            videoList = searchResult.items.map { videoInfo ->
+                YouTubeSearchResultData.VideoInfo(
+                    videoInfo.id.videoId,
+                    androidHtmlUtil.fromHtml(videoInfo.snippet.title),
+                    (videoInfo.snippet.thumbnails["default"] as? Thumbnail)?.url
+                )
+            }
+        )
     }
 
     override suspend fun loadMoreVideo(searchKey: String, nextPageToken: String): Result<YouTubeSearchResultData> = withContext(Dispatchers.IO) {
@@ -101,7 +105,6 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
 
     override suspend fun extractYouTubeSound(videoId: String, videoName: String): DownloadStateData = withContext(Dispatchers.IO) {
         val downloadState = DownloadStateDto()
-
         runCatching {
             rapidApiService.extractVideo(idCode = videoId, apiKeyUtil.getRapidApiKey(), apiKeyUtil.getRapidApiHost())
         }.onSuccess {
@@ -114,21 +117,20 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
         downloadState.toData()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun extractYouTubeSoundFlow(videoId: String, videoName: String): Flow<DownloadMusicStateData> {
         return flow {
-            runCatching {
-                rapidApiService.extractVideo(idCode = videoId, apiKey = apiKeyUtil.getRapidApiKey(), apiHost = apiKeyUtil.getRapidApiHost())
-            }.onFailure {
-                emit(DownloadMusicStateData.FetchMusicLinkFailed(it))
-            }.mapCatching {
-                Request.Builder().url(it.link!!).build()
-            }.onFailure {
-                emit(DownloadMusicStateData.InvalidLink)
-            }.mapCatching { request ->
-                extractYouTubeSound(request = request)
-            }.onFailure {
-                emit(DownloadMusicStateData.DownloadMusicFailed(it as? IOException))
-            }.mapCatching {
+            emit(rapidApiService.extractVideo(videoId, apiKeyUtil.getRapidApiKey(), apiKeyUtil.getRapidApiHost()))
+        }.catch {
+            throw DownloadMusicStateData.FetchMusicLinkFailed(it)
+        }.map {
+            Request.Builder().url(it.link!!).build()
+        }.catch {
+            throw DownloadMusicStateData.InvalidLink(it)
+        }.map { request ->
+            extractYouTubeSound(request)
+        }.flatMapLatest {
+            flow {
                 val contentLength = it.contentLength()
                 val inputStream = it.byteStream()
                 val musicDownloadModel = fileUtil.getFileDownloadModel(fileName = videoName)
@@ -141,8 +143,12 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
                     emit(DownloadMusicStateData.OnDownloaded(bytesRead))
                 }
                 emit(DownloadMusicStateData.OnDownloadDoneMusic)
-            }.onFailure {
-                emit(DownloadMusicStateData.OnSaveFileFailed)
+            }.flowOn(Dispatchers.IO)
+        }.catch { exception ->
+            if (exception is DownloadMusicStateData) {
+                emit(exception)
+            } else {
+                emit(DownloadMusicStateData.OnSaveFileFailed(exception))
             }
         }
     }

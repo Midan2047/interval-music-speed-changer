@@ -25,6 +25,7 @@ import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -75,6 +77,7 @@ fun SettingsScreen(
     val runPeriod by viewModel.runningMinuteFlow.collectAsStateWithLifecycle()
     val showCallConfirmDialog by viewModel.showCallConfirmDialogFlow.collectAsStateWithLifecycle()
 
+
     SettingsScreen(
         setsCount = setsCount,
         walkPeriod = walkPeriod,
@@ -104,6 +107,12 @@ fun SettingsScreen(
             .wrapContentHeight()
             .fillMaxWidth()
     )
+
+    LaunchedEffect(key1 = Unit) {
+        viewModel.saveDoneFlow.collect {
+            Toast.makeText(context,"저장되었습니다!",Toast.LENGTH_SHORT).show()
+        }
+    }
 
 
     BackHandler(enabled = true, onBack = onBackPressed)

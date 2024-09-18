@@ -14,7 +14,7 @@ internal class YouTubeRepositoryImpl @Inject constructor(
     private val remote: YouTubeRemoteDataSource,
 ) : YouTubeRepository {
 
-    override suspend fun searchYouTubeByKeyword(keyword: String): Result<YouTubeSearchResult> {
+    override suspend fun searchYouTubeByKeyword(keyword: String): Flow<YouTubeSearchResult> {
         return remote.fetchSearchResult(keyword).map { searchResultData ->
             searchResultData.toDomain()
         }

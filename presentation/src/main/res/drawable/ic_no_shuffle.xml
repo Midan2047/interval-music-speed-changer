@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:tint="#000000"
+    android:viewportHeight="24"
+    android:viewportWidth="24"
+    android:width="24dp">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="
+        M4 5.3 v1.4 h12 V5.3z
+        M16 2.12 l3.88 3.88 l-3.88 3.88z
+
+        M4 17.3 v1.4 h12 V17.3z
+        M16 14.12 l3.88 3.88 l-3.88 3.88z
+        "/>
+</vector>

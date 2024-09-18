@@ -100,6 +100,7 @@ obj/
 .idea/shelf/
 .idea/workspace.xml
 .idea/tasks.xml
+.idea/deploymentTargetSelector.xml
 .idea/.name
 .idea/compiler.xml
 .idea/copyright/profiles_settings.xml

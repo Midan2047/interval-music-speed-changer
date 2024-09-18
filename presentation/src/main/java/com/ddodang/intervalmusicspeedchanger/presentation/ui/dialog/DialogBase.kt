@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 
 @Composable
-fun MessageDialogHeader(modifier: Modifier, title: String) {
+fun MessageDialogHeader(title: String, modifier: Modifier = Modifier) {
     Text(
         text = title,
         modifier = modifier

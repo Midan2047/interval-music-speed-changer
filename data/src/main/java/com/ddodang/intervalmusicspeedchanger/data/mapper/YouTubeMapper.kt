@@ -28,9 +28,9 @@ internal fun DownloadStateData.toDomain() = DownloadState(
 internal fun DownloadMusicStateData.toDomain(): DownloadMusicState = when (this) {
     is DownloadMusicStateData.DownloadMusicFailed -> DownloadMusicState.DownloadMusicFailed(throwable)
     is DownloadMusicStateData.FetchMusicLinkFailed -> DownloadMusicState.FetchMusicLinkFailed(throwable)
-    DownloadMusicStateData.InvalidLink -> DownloadMusicState.InvalidLink
+    is DownloadMusicStateData.InvalidLink -> DownloadMusicState.InvalidLink(throwable)
     DownloadMusicStateData.OnDownloadDoneMusic -> DownloadMusicState.OnDownloadDoneMusic
     is DownloadMusicStateData.OnDownloadStartMusic -> DownloadMusicState.OnDownloadStartMusic(contentLength)
     is DownloadMusicStateData.OnDownloaded -> DownloadMusicState.OnDownloaded(downloadedByte)
-    DownloadMusicStateData.OnSaveFileFailed -> DownloadMusicState.OnSaveFileFailed
+    is DownloadMusicStateData.OnSaveFileFailed -> DownloadMusicState.OnSaveFileFailed(throwable)
 }

@@ -7,7 +7,9 @@ import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchIntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.UpdateIntervalSettingUseCase
 import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,6 +32,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _showCallConfirmDialogFlow = MutableStateFlow(false)
     val showCallConfirmDialogFlow = _showCallConfirmDialogFlow.asStateFlow()
+
+    private val _saveDoneFlow = MutableSharedFlow<Boolean>()
+    val saveDoneFlow= _saveDoneFlow.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -61,6 +66,7 @@ class SettingsViewModel @Inject constructor(
             )
             updateIntervalSettingUseCase(intervalSetting).onSuccess {
                 musicPlayer.setInterval(it)
+                _saveDoneFlow.emit(true)
             }
         }
     }

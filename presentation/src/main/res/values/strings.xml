@@ -13,4 +13,10 @@
     <string name="path_somewhere">경로어딘가</string>
     <string name="go_back_list">리스트로 돌아가기</string>
     <string name="mm_ss">%02d:%02d</string>
+
+    <string name="searchingMusic">음악을 검색하는 중 이에요</string>
+    <string name="waitForSearch">얼른 찾아올 테니\n잠시만 기다려 주세요…!</string>
+
+    <string name="preparingDownload">음악 다운로드를 위해 준비중 이에요</string>
+    <string name="waitForPrepare">곧 다운로드가 시작되니\n잠시만 기다려 주세요…!</string>
 </resources>

@@ -56,6 +56,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.presentation.R
+import com.ddodang.intervalmusicspeedchanger.presentation.model.RepeatMode
 import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.component.GifImage
 import com.ddodang.intervalmusicspeedchanger.presentation.util.retrieveThumbnailBitmapFromFile
@@ -68,9 +69,13 @@ fun MusicPlayScreen(
     val isPlaying by viewModel.isPlayingFlow.collectAsStateWithLifecycle()
     val currentPlayTime by viewModel.playTimeFlow.collectAsStateWithLifecycle()
     val currentPlayingMusic by viewModel.currentPlayingMusicFlow.collectAsStateWithLifecycle()
+    val shuffleEnabled by viewModel.shuffleEnabledFlow.collectAsStateWithLifecycle()
+    val repeatMode by viewModel.repeatModeFlow.collectAsStateWithLifecycle()
 
     MusicPlayScreen(
         isPlaying = isPlaying,
+        shuffleEnabled = shuffleEnabled,
+        repeatMode = repeatMode,
         currentPlayingMusic = currentPlayingMusic,
         musicPlayTimeMillis = currentPlayTime,
         progress = progress,
@@ -85,6 +90,8 @@ fun MusicPlayScreen(
 private fun MusicPlayScreen(
     isPlaying: Boolean,
     currentPlayingMusic: Music?,
+    shuffleEnabled: Boolean,
+    repeatMode: RepeatMode,
     musicPlayTimeMillis: Int,
     progress: Float,
     onMusicPlaySeekBarChanged: (Float) -> Unit,
@@ -97,6 +104,8 @@ private fun MusicPlayScreen(
             MusicPlayingScreenWithMusic(
                 isPlaying = isPlaying,
                 currentPlayingMusic = currentPlayingMusic,
+                shuffleEnabled = shuffleEnabled,
+                repeatMode = repeatMode,
                 musicPlayTimeMillis = musicPlayTimeMillis,
                 progress = progress,
                 onMusicPlaySeekBarChanged = onMusicPlaySeekBarChanged,
@@ -139,6 +148,8 @@ private fun MusicNullScreen(
 private fun MusicPlayingScreenWithMusic(
     isPlaying: Boolean,
     currentPlayingMusic: Music,
+    shuffleEnabled: Boolean,
+    repeatMode: RepeatMode,
     musicPlayTimeMillis: Int,
     progress: Float,
     onMusicPlaySeekBarChanged: (Float) -> Unit,
@@ -220,6 +231,8 @@ private fun MusicPlayingScreenWithMusic(
 
         MusicController(
             isPlaying = isPlaying,
+            shuffleEnabled = shuffleEnabled,
+            repeatMode = repeatMode,
             progress = progress,
             modifier = Modifier.layoutId("music_controller")
         )
@@ -233,7 +246,7 @@ private fun MusicPlayProgressSlider(
     transformProgress: Float,
     modifier: Modifier = Modifier,
     onValueChange: (Float) -> Unit = {},
-    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    valueRange: ClosedFloatingPointRange<Float> = 0f .. 1f,
     steps: Int = 0,
     colors: SliderColors = SliderDefaults.colors(),
 ) {
@@ -279,6 +292,8 @@ private fun MusicPlayProgressSlider(
 @Composable
 private fun MusicController(
     isPlaying: Boolean,
+    shuffleEnabled: Boolean,
+    repeatMode: RepeatMode,
     progress: Float,
     modifier: Modifier = Modifier,
 ) {
@@ -290,12 +305,19 @@ private fun MusicController(
         progress = progress,
         modifier = modifier,
     ) {
+
+        val currentShuffleModeResId = if (shuffleEnabled) {
+            R.drawable.ic_shuffle
+        } else {
+            R.drawable.ic_no_shuffle
+        }
+
         IconButton(
-            onClick = { },
+            onClick = { if (!isPreview) setShuffleEnabled(context, !shuffleEnabled) },
             modifier = Modifier.layoutId("button_shuffle")
         ) {
             Icon(
-                imageVector = ImageVector.vectorResource(id = R.drawable.ic_shuffle),
+                imageVector = ImageVector.vectorResource(id = currentShuffleModeResId),
                 contentDescription = "랜덤재생",
                 modifier = Modifier.size(32.dp)
             )
@@ -322,9 +344,7 @@ private fun MusicController(
                 contentDescription = "play or pause",
                 modifier = Modifier.size(32.dp)
             )
-
         }
-
 
         IconButton(
             onClick = { if (!isPreview) playNextMusic(context) },
@@ -337,13 +357,18 @@ private fun MusicController(
             )
         }
 
+        val currentRepeatModeResId = when (repeatMode) {
+            RepeatMode.All -> R.drawable.ic_loop
+            RepeatMode.One -> R.drawable.ic_loop_one
+            RepeatMode.Off -> R.drawable.ic_no_loop
+        }
 
         IconButton(
-            onClick = { },
+            onClick = { if (!isPreview) setRepeatMode(context, repeatMode.nextMode()) },
             modifier = Modifier.layoutId("button_repeat")
         ) {
             Icon(
-                imageVector = ImageVector.vectorResource(id = R.drawable.ic_loop),
+                imageVector = ImageVector.vectorResource(id = currentRepeatModeResId),
                 contentDescription = "반복재생",
                 modifier = Modifier.size(32.dp)
             )
@@ -355,7 +380,18 @@ private fun playPreviousMusic(context: Context) {
     context.startForegroundService(Intent(context, MusicService::class.java).apply {
         action = MusicService.Constants.ACTION.PREVIOUS
     })
+}
 
+private fun setShuffleEnabled(context: Context, shuffleEnabled: Boolean) {
+    context.startForegroundService(Intent(context, MusicService::class.java).apply {
+        action = MusicService.Constants.ACTION.SET_SHUFFLE
+    }.putExtra(MusicService.Constants.PARAMETER.SHUFFLE_MODE, shuffleEnabled))
+}
+
+private fun setRepeatMode(context: Context, repeatMode: RepeatMode) {
+    context.startForegroundService(Intent(context, MusicService::class.java).apply {
+        action = MusicService.Constants.ACTION.SET_REPEAT_MODE
+    }.putExtra(MusicService.Constants.PARAMETER.REPEAT_MODE, repeatMode))
 }
 
 private fun playNextMusic(context: Context) {
@@ -580,6 +616,8 @@ private fun Preview() {
         MusicPlayScreen(
             isPlaying = true,
             currentPlayingMusic = Music("", "노미", "또당또당", "", 1000),
+            shuffleEnabled = true,
+            repeatMode = RepeatMode.All,
             musicPlayTimeMillis = 100,
             progress = 0f,
             onMusicPlaySeekBarChanged = {},
@@ -595,6 +633,8 @@ private fun PreviewMusicNull() {
         MusicPlayScreen(
             isPlaying = false,
             currentPlayingMusic = Music("", "노미", "또당또당", "", 8271000),
+            shuffleEnabled = true,
+            repeatMode = RepeatMode.All,
             musicPlayTimeMillis = 92100,
             progress = 1f,
             onMusicPlaySeekBarChanged = {},

@@ -7,12 +7,17 @@ import com.ddodang.intervalmusicspeedchanger.domain.usecase.ExtractYouTubeSoundU
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.LoadMoreVideoListUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.SearchYouTubeVideoListUseCase
 import com.ddodang.intervalmusicspeedchanger.presentation.model.MusicDownloadStateItem
+import com.ddodang.intervalmusicspeedchanger.presentation.model.MusicSearchLoadingState
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.base.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,16 +35,29 @@ class MusicDownloadViewModel @Inject constructor(
     private val _musicDownloadStateFlow = MutableStateFlow(MusicDownloadStateItem(downloadInformation = null, downloadError = null))
     val musicDownloadStateFlow = _musicDownloadStateFlow.asStateFlow()
 
+    private val _loadingStateFlow = MutableStateFlow<MusicSearchLoadingState>(MusicSearchLoadingState.None)
+    val loadingStateFlow = _loadingStateFlow.asStateFlow()
+
     private var searchKeyword: String? = null
     private var nextPageToken: String? = null
 
     fun search(keyWord: String) {
         viewModelScope.launch {
             searchKeyword = keyWord
-            searchYouTubeVideoList(keyWord).onSuccess { youTubeSearchResult ->
-                nextPageToken = youTubeSearchResult.nextPageToken
-                _videoSearchResultListFlow.value = youTubeSearchResult.videoList
-            }
+            searchYouTubeVideoList(keyWord)
+                .flowOn(Dispatchers.IO)
+                .catch {
+                    println(it)
+                }.onStart {
+                    _loadingStateFlow.value = MusicSearchLoadingState.Searching
+                }.onCompletion {
+                    _loadingStateFlow.value = MusicSearchLoadingState.None
+                }.retry(3) {
+                    true
+                }.collect { youTubeSearchResult ->
+                    nextPageToken = youTubeSearchResult.nextPageToken
+                    _videoSearchResultListFlow.value = youTubeSearchResult.videoList
+                }
         }
     }
 
@@ -58,12 +76,14 @@ class MusicDownloadViewModel @Inject constructor(
     fun download(searchResult: YouTubeSearchResult.VideoInfo) {
         viewModelScope.launch {
             extractYouTubeSound(searchResult.videoId, searchResult.title)
-                .flowOn(Dispatchers.IO).collect { state ->
+                .flowOn(Dispatchers.IO)
+                .onStart { _loadingStateFlow.value = MusicSearchLoadingState.PrepareDownload }
+                .collect { state ->
                     when (state) {
                         is DownloadMusicState.DownloadMusicFailed -> setErrorState(MusicDownloadStateItem.DownloadError.DownloadMusicFailed(state.throwable))
                         is DownloadMusicState.FetchMusicLinkFailed -> setErrorState(MusicDownloadStateItem.DownloadError.FetchDownloadLinkFailed(state.throwable))
-                        DownloadMusicState.InvalidLink -> setErrorState(MusicDownloadStateItem.DownloadError.InvalidLink)
-                        DownloadMusicState.OnSaveFileFailed -> setErrorState(MusicDownloadStateItem.DownloadError.OnSaveFileFailed)
+                        is DownloadMusicState.InvalidLink -> setErrorState(MusicDownloadStateItem.DownloadError.InvalidLink)
+                        is DownloadMusicState.OnSaveFileFailed -> setErrorState(MusicDownloadStateItem.DownloadError.OnSaveFileFailed)
                         DownloadMusicState.OnDownloadDoneMusic -> {
                             _musicDownloadStateFlow.update { musicDownloadState ->
                                 musicDownloadState.copy(
@@ -78,6 +98,7 @@ class MusicDownloadViewModel @Inject constructor(
                         }
 
                         is DownloadMusicState.OnDownloadStartMusic -> {
+                            _loadingStateFlow.value = MusicSearchLoadingState.None
                             _musicDownloadStateFlow.update { musicDownloadState ->
                                 musicDownloadState.copy(
                                     downloadInformation = MusicDownloadStateItem.DownloadInformation(
@@ -98,9 +119,7 @@ class MusicDownloadViewModel @Inject constructor(
                                             downloadedPercentage = ((it.downloadedByteLength + state.downloadedByte) * 100 / it.contentLength).toInt()
                                         )
                                     }
-                                ).also {
-                                    println("Downloaded : $it")
-                                }
+                                )
                             }
                         }
                     }
@@ -109,6 +128,7 @@ class MusicDownloadViewModel @Inject constructor(
     }
 
     private fun setErrorState(error: MusicDownloadStateItem.DownloadError) {
+        _loadingStateFlow.value = MusicSearchLoadingState.None
         _musicDownloadStateFlow.update {
             it.copy(
                 downloadInformation = null,

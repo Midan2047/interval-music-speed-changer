@@ -8,6 +8,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.Icon
@@ -30,13 +32,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -47,8 +56,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.ddodang.intervalmusicspeedchanger.domain.model.YouTubeSearchResult
 import com.ddodang.intervalmusicspeedchanger.presentation.R
+import com.ddodang.intervalmusicspeedchanger.presentation.model.LoadingState
 import com.ddodang.intervalmusicspeedchanger.presentation.model.MusicDownloadStateItem
+import com.ddodang.intervalmusicspeedchanger.presentation.model.MusicSearchLoadingState
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.ErrorMessageDialog
+import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.LoadingDialog
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.MusicDownloadDialog
 import java.math.RoundingMode
 import java.text.DecimalFormat
@@ -60,15 +72,17 @@ fun MusicDownloadScreen(
     val viewModel = hiltViewModel<MusicDownloadViewModel>()
     val youtubeSearchResult by viewModel.videoSearchResultList.collectAsState()
     val musicDownloadStateItem by viewModel.musicDownloadStateFlow.collectAsState()
-    println(musicDownloadStateItem)
+    val loadingState by viewModel.loadingStateFlow.collectAsState()
     MusicDownloadScreen(
         youtubeSearchResult = youtubeSearchResult,
         musicDownloadStateItem = musicDownloadStateItem,
+        loadingState = loadingState,
         onSearch = { searchKeyword -> viewModel.search(searchKeyword) },
         onVideoToExtractSelected = { result -> viewModel.download(result) },
         onScrollReachEnd = { viewModel.loadMore() },
         onProgressDone = { viewModel.downloadDone() }
     )
+
     BackHandler(enabled = true, onBack = onBackPressed)
 }
 
@@ -76,6 +90,7 @@ fun MusicDownloadScreen(
 private fun MusicDownloadScreen(
     youtubeSearchResult: List<YouTubeSearchResult.VideoInfo>,
     musicDownloadStateItem: MusicDownloadStateItem,
+    loadingState: MusicSearchLoadingState,
     onSearch: (String) -> Unit,
     onVideoToExtractSelected: (YouTubeSearchResult.VideoInfo) -> Unit,
     onScrollReachEnd: () -> Unit,
@@ -115,9 +130,13 @@ private fun MusicDownloadScreen(
                     errorMessage = it.message ?: "에러가 발생해따!!!",
                     onConfirm = onProgressDone,
                     modifier = Modifier.constrainAs(dialogRef) {
+                        width = Dimension.percent(0.8f)
                         linkTo(parent.start, parent.end)
                         linkTo(parent.top, parent.bottom)
-                    }
+                    }.shadow(
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(6.dp)
+                    )
                 )
             }
         }
@@ -133,11 +152,47 @@ private fun MusicDownloadScreen(
                             (it.contentLength.toDouble() / 1024 / 1024).toRoundedString(2)
                         }MB )",
                         modifier = Modifier.constrainAs(dialogRef) {
+                            width = Dimension.percent(0.8f)
                             linkTo(parent.start, parent.end)
                             linkTo(parent.top, parent.bottom)
-                        }
+                        }.shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(6.dp)
+                        )
                     )
                 }
+            }
+        }
+        when (loadingState) {
+            MusicSearchLoadingState.None -> {}
+            MusicSearchLoadingState.Searching -> {
+                LoadingDialog(
+                    title = stringResource(id = R.string.searchingMusic),
+                    description = stringResource(id = R.string.waitForSearch),
+                    modifier = Modifier.constrainAs(dialogRef) {
+                        width = Dimension.percent(0.8f)
+                        linkTo(parent.start, parent.end)
+                        linkTo(parent.top, parent.bottom)
+                    }.shadow(
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                )
+            }
+
+            MusicSearchLoadingState.PrepareDownload -> {
+                LoadingDialog(
+                    title = stringResource(id = R.string.preparingDownload),
+                    description = stringResource(id = R.string.waitForPrepare),
+                    modifier = Modifier.constrainAs(dialogRef) {
+                        width = Dimension.percent(0.8f)
+                        linkTo(parent.start, parent.end)
+                        linkTo(parent.top, parent.bottom)
+                    }.shadow(
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                )
             }
         }
 
@@ -150,6 +205,7 @@ private fun Double.toRoundedString(decimalPoint: Int): String {
     return decimalFormat.format(this)
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SearchTextField(
     onSearch: (String) -> Unit,
@@ -169,7 +225,13 @@ fun SearchTextField(
                 onSearch(text)
             }
         ),
-        modifier = modifier,
+        modifier = modifier.then(Modifier.onKeyEvent {
+            if (it.key == Key.Enter) {
+                focusManager.clearFocus()
+                onSearch(text)
+                true
+            } else false
+        }),
         decorationBox = { innerTextField ->
             ConstraintLayout(modifier = Modifier.fillMaxWidth()) {
                 val (placeHolderRef, innerTextRef, iconRef) = createRefs()
@@ -301,6 +363,7 @@ fun Preview() {
                 )
             },
             musicDownloadStateItem = MusicDownloadStateItem(null, null),
+            loadingState = MusicSearchLoadingState.PrepareDownload,
             onSearch = {},
             onVideoToExtractSelected = {},
             onScrollReachEnd = {},

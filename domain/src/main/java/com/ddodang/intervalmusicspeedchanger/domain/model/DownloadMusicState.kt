@@ -6,7 +6,9 @@ sealed interface DownloadMusicState {
         val throwable: Throwable,
     ) : DownloadMusicState
 
-    object InvalidLink : DownloadMusicState
+    data class InvalidLink(
+        val throwable: Throwable?,
+    ) : DownloadMusicState
 
     data class DownloadMusicFailed(
         val throwable: Throwable?,
@@ -22,5 +24,7 @@ sealed interface DownloadMusicState {
 
     object OnDownloadDoneMusic : DownloadMusicState
 
-    object OnSaveFileFailed : DownloadMusicState
+    data class OnSaveFileFailed(
+        val throwable: Throwable?,
+    ) : DownloadMusicState
 }

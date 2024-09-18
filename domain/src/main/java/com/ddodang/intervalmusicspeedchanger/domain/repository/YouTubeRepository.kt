@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface YouTubeRepository {
 
-    suspend fun searchYouTubeByKeyword(keyword: String): Result<YouTubeSearchResult>
+    suspend fun searchYouTubeByKeyword(keyword: String): Flow<YouTubeSearchResult>
     suspend fun loadMoreVideo(keyword: String, nextPageToken: String): Result<YouTubeSearchResult>
 
     suspend fun extractYouTubeMusic(videoId: String, videoName: String): DownloadState

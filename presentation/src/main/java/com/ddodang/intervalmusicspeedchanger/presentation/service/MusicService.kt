@@ -5,13 +5,17 @@ import android.app.Service
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.os.Build
 import android.os.IBinder
+import androidx.annotation.OptIn
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.coroutineScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.common.util.UnstableApi
+import com.ddodang.intervalmusicspeedchanger.presentation.model.RepeatMode
 import com.ddodang.intervalmusicspeedchanger.presentation.notiifcation.MusicNotification
 import com.ddodang.intervalmusicspeedchanger.presentation.receiver.AudioBroadcastReceiver
 import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
@@ -47,6 +51,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
         return null
     }
 
+    @OptIn(UnstableApi::class)
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         when (intent.action) {
             Constants.ACTION.TOGGLE_PLAY -> musicPlayer.togglePlay()
@@ -56,6 +61,15 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             Constants.ACTION.CLOSE -> finishService()
             Constants.ACTION.SEEK_TO -> musicPlayer.setMusicPosition(intent.getLongExtra(Constants.PARAMETER.POSITION, 0L).toInt())
             Constants.ACTION.INTERVAL_DONE -> intervalDone()
+            Constants.ACTION.SET_SHUFFLE -> musicPlayer.setShuffleMode(intent.getBooleanExtra(Constants.PARAMETER.SHUFFLE_MODE, false))
+            Constants.ACTION.SET_REPEAT_MODE -> {
+                val repeatMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getSerializableExtra(Constants.PARAMETER.REPEAT_MODE, RepeatMode::class.java) ?: RepeatMode.All
+                } else {
+                    intent.getSerializableExtra(Constants.PARAMETER.REPEAT_MODE) as? RepeatMode ?: RepeatMode.All
+                }
+                musicPlayer.setRepeatMode(repeatMode)
+            }
         }
         return START_STICKY
     }
@@ -114,12 +128,16 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             const val NEXT = "com.ddodang.intervalmusicspeedchager.action.NEXT"
             const val PREVIOUS = "com.ddodang.intervalmusicspeedchager.action.PREVIOUS"
             const val CLOSE = "com.ddodang.intervalmusicspeedchanger.action.CLOSE"
-            const val INTERVAL_DONE = "com.ddodang.intervalmusicspeedchanger.action.INTERVALDONE"
+            const val INTERVAL_DONE = "com.ddodang.intervalmusicspeedchanger.action.INTERVAL_DONE"
+            const val SET_SHUFFLE = "com.ddodang.intervalmusicspeedchanger.action.SET_SHUFFLE"
+            const val SET_REPEAT_MODE = "com.ddodang.intervalmusicspeedchanger.action.SET_REPEAT_MODE"
         }
 
         object PARAMETER : Constants() {
 
             const val POSITION = "POSITION"
+            const val SHUFFLE_MODE = "SHUFFLE_MODE"
+            const val REPEAT_MODE = "REPEAT_MODE"
         }
     }
 

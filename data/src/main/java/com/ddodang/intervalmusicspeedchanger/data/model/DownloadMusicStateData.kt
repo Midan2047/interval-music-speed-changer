@@ -4,13 +4,15 @@ sealed interface DownloadMusicStateData {
 
     data class FetchMusicLinkFailed(
         val throwable: Throwable,
-    ) : DownloadMusicStateData
+    ) : Exception(throwable.message, throwable), DownloadMusicStateData
 
-    object InvalidLink : DownloadMusicStateData
+    data class InvalidLink(
+        val throwable: Throwable,
+    ) : Exception(throwable.message, throwable), DownloadMusicStateData
 
     data class DownloadMusicFailed(
-        val throwable: Throwable?,
-    ) : DownloadMusicStateData
+        val throwable: Throwable,
+    ) : Exception(throwable.message, throwable), DownloadMusicStateData
 
     data class OnDownloadStartMusic(
         val contentLength: Long,
@@ -22,5 +24,7 @@ sealed interface DownloadMusicStateData {
 
     object OnDownloadDoneMusic : DownloadMusicStateData
 
-    object OnSaveFileFailed : DownloadMusicStateData
+    data class OnSaveFileFailed(
+        val throwable: Throwable,
+    ) : Exception(throwable.message, throwable), DownloadMusicStateData
 }

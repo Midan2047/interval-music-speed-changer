@@ -8,9 +8,11 @@ import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.colorResource
@@ -105,15 +107,22 @@ fun ErrorMessageBody(
 
 @Preview(showBackground = true)
 @Composable
-fun Preview() {
+fun ErrorDialogPreview() {
+
     ConstraintLayout {
         val dialogRef = createRef()
         ErrorMessageDialog(
             errorMessage = "에러가 발생해따!!!!",
             onConfirm = {},
-            modifier = Modifier.constrainAs(dialogRef) {
-                linkTo(parent.start, parent.end)
-                linkTo(parent.top, parent.bottom)
-            })
+            modifier = Modifier
+                .constrainAs(dialogRef) {
+                    linkTo(parent.start, parent.end)
+                    linkTo(parent.top, parent.bottom)
+                }
+                .shadow(
+                    elevation = 10.dp,
+                    shape = RoundedCornerShape(6.dp)
+                )
+        )
     }
 }

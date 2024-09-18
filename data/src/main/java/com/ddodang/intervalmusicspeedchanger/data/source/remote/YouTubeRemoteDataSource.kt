@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface YouTubeRemoteDataSource {
 
-    suspend fun fetchSearchResult(searchKey: String): Result<YouTubeSearchResultData>
+    suspend fun fetchSearchResult(searchKey: String): Flow<YouTubeSearchResultData>
 
     suspend fun loadMoreVideo(keyword: String, nextPageToken: String): Result<YouTubeSearchResultData>
 

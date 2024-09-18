@@ -2,13 +2,19 @@ package com.ddodang.intervalmusicspeedchanger.presentation.util
 
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.media.MediaPlayer
+import android.net.Uri
 import android.os.PowerManager
-import com.ddodang.intervalmusicspeedchanger.common.extensions.getOrDefault
+import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.domain.model.MusicPlayingInformation
+import com.ddodang.intervalmusicspeedchanger.presentation.model.RepeatMode
 import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -19,15 +25,50 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@UnstableApi
 @Singleton
-class MusicPlayer @Inject constructor(
+class MusicPlayer @OptIn(UnstableApi::class) @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
-    private var mediaPlayer: MediaPlayer? = null
+    private lateinit var exoPlayer: ExoPlayer
+
+    private val playerListener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) startInterval()
+            _musicPlayingInformationFlow.update {
+                it.copy(isPlaying = isPlaying)
+            }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            super.onMediaItemTransition(mediaItem, reason)
+            _currentPlayingMusicFlow.value = playList.firstOrNull { it.id == mediaItem?.mediaId }
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            super.onRepeatModeChanged(repeatMode)
+            _musicPlayingInformationFlow.update {
+                it.copy(
+                    repeatMode = repeatMode
+                )
+            }
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+            _musicPlayingInformationFlow.update {
+                it.copy(
+                    shuffle = shuffleModeEnabled
+                )
+            }
+        }
+    }
 
     private var playList: List<Music> = emptyList()
     private val _currentPlayingMusicFlow: MutableStateFlow<Music?> = MutableStateFlow(null)
@@ -39,8 +80,10 @@ class MusicPlayer @Inject constructor(
     private val _musicPlayingInformationFlow = MutableStateFlow(
         MusicPlayingInformation(
             isPlaying = false,
-            playTimeMillis = 0,
-            playbackSpeed = 1f
+            playTimeMillis = 0L,
+            playbackSpeed = 1f,
+            repeatMode = Player.REPEAT_MODE_ALL,
+            shuffle = false
         )
     )
     val musicPlayingInformationFlow = _musicPlayingInformationFlow.asStateFlow()
@@ -62,12 +105,16 @@ class MusicPlayer @Inject constructor(
     private val secondPerIntervalSet
         get() = intervalWalking + intervalRunning
 
+    init {
+        createExoPlayer()
+    }
+
     fun setMusicList(musicList: List<Music>) {
         playList = musicList
     }
 
     fun initialize(musicInfo: Music, interval: IntervalSetting) {
-        if (mediaPlayer == null) {
+        if (!exoPlayer.isPlaying) {
             context.startForegroundService(Intent(context, MusicService::class.java))
         }
         setInterval(interval)
@@ -81,63 +128,63 @@ class MusicPlayer @Inject constructor(
         intervalSet = interval.setCount
     }
 
+    @OptIn(UnstableApi::class)
     private fun setMusic(musicInfo: Music?) {
-        val needPlay = mediaPlayer == null || isPlaying
         if (isPlaying) stopMusic()
-        _currentPlayingMusicFlow.value = musicInfo
-        mediaPlayer = MediaPlayer().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
+        if (playList.isNotEmpty()) {
+            if(exoPlayer.isReleased) createExoPlayer()
+            exoPlayer.setMediaItems(
+                playList.map { music -> music.toMediaItem() },
+                playList.indexOfFirst { it.id == musicInfo?.id }.coerceAtLeast(0),
+                C.TIME_UNSET
             )
-            setOnPreparedListener {
-                if (needPlay) {
-                    startMusic()
-                }
-            }
-            setOnCompletionListener { completedMediaPlayer ->
-                setMusic(getNextMusic())
-                completedMediaPlayer.release()
-            }
-            setOnErrorListener { mediaPlayer, _, _ ->
-                mediaPlayer.reset()
-                true
-            }
-            setDataSource(musicInfo?.location)
-            prepareAsync()
-            setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
+            exoPlayer.prepare()
         }
     }
 
+    private fun createExoPlayer() {
+        exoPlayer = ExoPlayer.Builder(context)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                true
+            )
+            .setWakeMode(PowerManager.PARTIAL_WAKE_LOCK)
+            .build()
+
+        exoPlayer.playWhenReady = true
+        exoPlayer.pauseAtEndOfMediaItems = false
+        exoPlayer.addListener(playerListener)
+        exoPlayer.repeatMode = musicPlayingInformationFlow.value.repeatMode
+        exoPlayer.shuffleModeEnabled = musicPlayingInformationFlow.value.shuffle
+    }
+
     fun togglePlay() {
-        if (isPlaying) {
-            pauseMusic()
-        } else if (mediaPlayer == null) {
+        if (exoPlayer.isReleased) createExoPlayer()
+
+        if (exoPlayer.mediaItemCount == 0) {
             setMusic(currentPlayingMusic)
+        } else if (exoPlayer.isPlaying) {
+            pauseMusic()
         } else {
             startMusic()
         }
     }
 
     fun playNextMusic() {
-        setMusic(getNextMusic())
+        exoPlayer.seekToNextMediaItem()
     }
 
     fun playPreviousMusic() {
-        setMusic(getPreviousMusic())
+        exoPlayer.seekToPreviousMediaItem()
     }
 
     private fun startMusic() {
         if (!isPlaying) {
-            mediaPlayer?.let {
-                it.start()
-                _musicPlayingInformationFlow.update { musicPlayingInformation ->
-                    musicPlayingInformation.copy(isPlaying = true)
-                }
-                it.playbackParams = it.playbackParams.setSpeed(musicPlayingInformationFlow.value.playbackSpeed)
-            }
+            exoPlayer.play()
+            exoPlayer.setPlaybackSpeed(musicPlayingInformationFlow.value.playbackSpeed)
             startInterval()
         }
     }
@@ -148,7 +195,7 @@ class MusicPlayer @Inject constructor(
                 while (currentTime < intervalSet * secondPerIntervalSet) {
                     setMusicProgressAndPlayingTime()
                     if (currentTime % secondPerIntervalSet == intervalWalking) {
-                        setPlaybackSpeed(2f)
+                        setPlaybackSpeed(1.5f)
                     } else if (currentTime % secondPerIntervalSet == 0) {
                         setPlaybackSpeed(1f)
                     }
@@ -160,20 +207,21 @@ class MusicPlayer @Inject constructor(
         }
     }
 
-    private fun setPlaybackSpeed(playbackSpeed: Float) {
-        mediaPlayer?.apply {
-            playbackParams = playbackParams.setSpeed(playbackSpeed)
-            _musicPlayingInformationFlow.update { musicPlayingInformation ->
-                musicPlayingInformation.copy(playbackSpeed = playbackSpeed)
-            }
+    private suspend fun setPlaybackSpeed(playbackSpeed: Float) = withContext(Dispatchers.Main) {
+        exoPlayer.setPlaybackSpeed(playbackSpeed)
+        _musicPlayingInformationFlow.update { musicPlayingInformation ->
+            musicPlayingInformation.copy(playbackSpeed = playbackSpeed)
         }
+
     }
 
     private suspend fun setMusicProgressAndPlayingTime() {
-        _musicPlayingInformationFlow.update { musicPlayingInformation ->
-            musicPlayingInformation.copy(
-                playTimeMillis = mediaPlayer?.currentPosition ?: 0
-            )
+        withContext(Dispatchers.Main) {
+            _musicPlayingInformationFlow.update { musicPlayingInformation ->
+                musicPlayingInformation.copy(
+                    playTimeMillis = exoPlayer.currentPosition
+                )
+            }
         }
         do {
             delay(1000L)
@@ -182,40 +230,38 @@ class MusicPlayer @Inject constructor(
     }
 
     fun pauseMusic() {
-        mediaPlayer?.pause()
-        _musicPlayingInformationFlow.update { musicPlayingInformation ->
-            musicPlayingInformation.copy(isPlaying = false)
-        }
+        exoPlayer.pause()
     }
 
     fun stopMusic() {
         pauseMusic()
-        mediaPlayer?.stop()
-        mediaPlayer?.reset()
-        mediaPlayer?.release()
-        mediaPlayer = null
+        _musicPlayingInformationFlow.update { it.copy(playTimeMillis = 0L) }
+        exoPlayer.stop()
+        exoPlayer.release()
     }
 
     fun setMusicPosition(positionInMillis: Int) {
         runCatching {
-            mediaPlayer?.seekTo(positionInMillis)
+            exoPlayer.seekTo(positionInMillis.toLong())
         }.onSuccess {
             _musicPlayingInformationFlow.update { musicPlayingInformation ->
                 musicPlayingInformation.copy(
-                    playTimeMillis = positionInMillis
+                    playTimeMillis = positionInMillis.toLong()
                 )
             }
         }
     }
 
-    private fun getNextMusic(): Music? {
-        val nextIndex = (playList.indexOf(currentPlayingMusic) + 1) % playList.size
-        return playList.getOrDefault(nextIndex, currentPlayingMusic)
+    fun setShuffleMode(shuffle: Boolean) {
+        exoPlayer.shuffleModeEnabled = shuffle
     }
 
-    private fun getPreviousMusic(): Music? {
-        val previousIndex =
-            (playList.indexOf(currentPlayingMusic) + playList.size - 1) % playList.size
-        return playList.getOrDefault(previousIndex, currentPlayingMusic)
+    fun setRepeatMode(repeatMode: RepeatMode) {
+        exoPlayer.repeatMode = repeatMode.mode
     }
+
+    private fun Music.toMediaItem() = MediaItem.Builder()
+        .setMediaId(id)
+        .setUri(Uri.fromFile(File(location)))
+        .build()
 }
