@@ -2,7 +2,7 @@
     <string name="app_name">인터벌 메이커</string>
     <string name="music">노래</string>
     <string name="settings">설정</string>
-    <string name="list_wantToBe_playList">플레이리스트가 되고 싶은 어떤 리스트</string>
+    <string name="list_wantToBe_playList">플레이리스트</string>
     <string name="timer">타이머</string>
     <string name="sets">SETS</string>
     <string name="walk">WALK</string>

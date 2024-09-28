@@ -2,7 +2,6 @@ package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.list
 
 import android.Manifest
 import android.app.Activity
-import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -64,6 +64,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -81,7 +82,6 @@ import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.common.extensions.finishApp
 import com.ddodang.intervalmusicspeedchanger.presentation.model.Screen
-import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.ErrorMessageDialog
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.music.play.MusicPlayScreen
 import com.ddodang.intervalmusicspeedchanger.presentation.util.retrieveThumbnailBitmapFromFile
@@ -201,13 +201,18 @@ fun MusicListScreen(
 ) {
     val pullRefreshState = rememberPullRefreshState(refreshing = isRefreshing, onRefresh = onRefresh)
     Surface(color = Color.White) {
-        ConstraintLayout(modifier = Modifier.fillMaxSize()) {
+        ConstraintLayout(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
+        ) {
             val (headerRef, listRef, refreshIndicatorRef) = createRefs()
 
             MusicListHeader(
                 modifier = Modifier
                     .constrainAs(headerRef) {
                         width = Dimension.fillToConstraints
+                        height = Dimension.wrapContent
                         linkTo(parent.start, parent.end)
                         top.linkTo(parent.top)
                     },
@@ -245,31 +250,36 @@ private fun MusicListHeader(
     onSettingsButtonClicked: () -> Unit,
     onMusicAddButtonClicked: () -> Unit,
 ) {
-    ConstraintLayout(modifier = modifier.padding(vertical = 12.dp)) {
+    ConstraintLayout(
+        modifier = modifier
+            .background(color = colorResource(id = R.color.sub_pink))
+    ) {
         val (headerTitleRef, settingButtonRef, addButtonRef) = createRefs()
-        val context = LocalContext.current
         Text(
             text = stringResource(id = R.string.list_wantToBe_playList),
             fontSize = TextUnit(18f, TextUnitType.Sp),
             fontWeight = FontWeight.Bold,
+            color = Color.White,
             modifier = Modifier
                 .constrainAs(headerTitleRef) {
-                    top.linkTo(parent.top)
+                    linkTo(parent.top, parent.bottom)
                     linkTo(parent.start, settingButtonRef.start, startMargin = 4.dp, endMargin = 4.dp, bias = 0f)
                 }
-                .clickable {
-                    context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.INTERVAL_DONE })
-                }
+                .padding(4.dp)
         )
 
         IconButton(
             onClick = onSettingsButtonClicked,
             modifier = Modifier.constrainAs(settingButtonRef) {
                 linkTo(headerTitleRef.top, headerTitleRef.bottom)
-                linkTo(headerTitleRef.end, addButtonRef.start)
+                end.linkTo(addButtonRef.start)
             }
         ) {
-            Icon(imageVector = Icons.Default.Settings, contentDescription = "설정창")
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "설정창",
+                tint = Color.White
+            )
         }
 
         IconButton(
@@ -280,7 +290,11 @@ private fun MusicListHeader(
                     end.linkTo(parent.end, margin = 8.dp)
                 }
         ) {
-            Icon(imageVector = Icons.Default.Add, contentDescription = "노래 추가 버튼")
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "노래 추가 버튼",
+                tint = Color.White
+            )
         }
 
     }

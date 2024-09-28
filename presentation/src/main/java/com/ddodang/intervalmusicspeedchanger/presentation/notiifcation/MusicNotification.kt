@@ -7,7 +7,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.Icon
 import android.media.MediaMetadata
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
@@ -71,7 +70,8 @@ class MusicNotification @Inject constructor(
     }
 
     fun createIntervalDoneNotification() = Notification.Builder(context, CHANNEL_ID)
-        .setSmallIcon(Icon.createWithResource(context, R.drawable.ikmyung_profile))
+        .setSmallIcon(R.drawable.transparent_ikmyung)
+        .setColor(context.getColor(R.color.sub_pink))
         .setContentTitle("인터벌이 종료되어쯥니다!!")
         .setContentText("수고하셔쯥니다!!")
         .setContentIntent(createIntervalDoneContentPendingIntent())
@@ -82,7 +82,7 @@ class MusicNotification @Inject constructor(
         .build()
 
     fun createMusicPlayerNotification() = Notification.Builder(context, CHANNEL_ID)
-        .setSmallIcon(Icon.createWithResource(context, R.drawable.ikmyung_profile))
+        .setSmallIcon(R.drawable.transparent_ikmyung)
         .setLargeIcon(retrieveThumbnailBitmapFromFile(musicInfo?.location))
         .setContentTitle(musicInfo?.title)
         .setContentText(musicInfo?.artist)
@@ -137,6 +137,7 @@ class MusicNotification @Inject constructor(
 
         val notificationChannel = NotificationChannel(CHANNEL_ID, javaClass.name, NotificationManager.IMPORTANCE_HIGH).also {
             it.group = CHANNEL_GROUP_ID
+            it.enableVibration(false)
         }
         NotificationManagerCompat.from(context).createNotificationChannel(notificationChannel)
     }

@@ -16,6 +16,10 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+
+        def localProperties = new Properties()
+        localProperties.load(new FileInputStream(rootProject.file("local.properties")))
+        buildConfigField "String", "CELL_PHONE_NUMBER", '"' + localProperties['CELL_PHONE_NUMBER'] + '"'
     }
 
     buildTypes {

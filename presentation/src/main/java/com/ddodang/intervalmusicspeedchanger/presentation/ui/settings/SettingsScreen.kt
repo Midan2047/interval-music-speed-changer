@@ -47,6 +47,7 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ddodang.intervalmusicspeedchanger.presentation.BuildConfig
 import com.ddodang.intervalmusicspeedchanger.presentation.R
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.component.GifImage
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.dialog.MessageDialogHeader
@@ -482,7 +483,7 @@ fun MessageBody(
 }
 
 private fun callMe(context: Context) {
-    context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + "01090382047")))
+    context.startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:" + BuildConfig.CELL_PHONE_NUMBER)))
 }
 
 @Preview
