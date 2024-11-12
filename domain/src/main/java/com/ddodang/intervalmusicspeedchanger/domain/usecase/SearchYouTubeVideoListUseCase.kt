@@ -9,7 +9,7 @@ class SearchYouTubeVideoListUseCase @Inject constructor(
     private val youTubeRepository: YouTubeRepository,
 ) {
 
-    suspend operator fun invoke(searchKeyword: String): Flow<YouTubeSearchResult> {
-        return youTubeRepository.searchYouTubeByKeyword(searchKeyword)
+    suspend operator fun invoke(searchKeyword: String, token: String?): Result<YouTubeSearchResult> {
+        return youTubeRepository.searchYouTubeByKeyword(searchKeyword, token)
     }
 }

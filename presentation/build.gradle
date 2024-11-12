@@ -75,6 +75,12 @@ dependencies {
     implementation "io.coil-kt:coil-gif:2.1.0"
 
 
+    implementation 'androidx.paging:paging-common-android:3.3.2'
+    implementation 'androidx.paging:paging-common-ktx:3.3.2'
+    implementation 'androidx.paging:paging-compose-android:3.3.2'
+    implementation 'androidx.paging:paging-compose:3.3.2'
+
+
     kapt "com.google.dagger:hilt-android-compiler:$hilt_version"
     implementation "com.google.dagger:hilt-android:$hilt_version"
     implementation "com.google.accompanist:accompanist-permissions:0.30.1"

@@ -106,6 +106,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
         stopSelf()
     }
 
+
     private fun finishMusicPlayNotification() {
         musicPlayer.stopMusic()
         musicNotification.cancelNotification()
@@ -142,5 +143,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     }
 
     override val lifecycle: Lifecycle = lifecycleRegistry
+
+
 
 }

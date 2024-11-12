@@ -48,38 +48,12 @@ internal class YouTubeRemoteDataSourceImpl @Inject constructor(
             .build()
     }
 
-    override suspend fun fetchSearchResult(searchKey: String): Flow<YouTubeSearchResultData> = flow {
-        val search = youtube.search().list("id,snippet")
-        val result = search.setKey(apiKeyUtil.getYoutubeApiKey())
-            .setQ(searchKey)
-            .setOrder("date")
-            .setType("video")
-            .setRegionCode("KR")
-            .setOrder("viewCount")
-            .setTopicId("10")
-            .setFields("items(id/kind,id/videoId,snippet/title,snippet/thumbnails/default/url,snippet),nextPageToken")
-            .setMaxResults(50)
-            .execute()
-        emit(result)
-    }.map { searchResult ->
-        YouTubeSearchResultData(
-            nextPageToken = searchResult.nextPageToken,
-            videoList = searchResult.items.map { videoInfo ->
-                YouTubeSearchResultData.VideoInfo(
-                    videoInfo.id.videoId,
-                    androidHtmlUtil.fromHtml(videoInfo.snippet.title),
-                    (videoInfo.snippet.thumbnails["default"] as? Thumbnail)?.url
-                )
-            }
-        )
-    }
-
-    override suspend fun loadMoreVideo(searchKey: String, nextPageToken: String): Result<YouTubeSearchResultData> = withContext(Dispatchers.IO) {
+    override suspend fun fetchSearchResult(searchKey: String, token: String?): Result<YouTubeSearchResultData> = withContext(Dispatchers.IO) {
         runCatching {
             val search = youtube.search().list("id,snippet")
             search.setKey(apiKeyUtil.getYoutubeApiKey())
                 .setQ(searchKey)
-                .setPageToken(nextPageToken)
+                .setPageToken(token)
                 .setOrder("date")
                 .setType("video")
                 .setRegionCode("KR")

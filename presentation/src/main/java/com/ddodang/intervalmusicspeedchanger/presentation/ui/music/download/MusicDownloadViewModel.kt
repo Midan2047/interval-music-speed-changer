@@ -1,23 +1,25 @@
 package com.ddodang.intervalmusicspeedchanger.presentation.ui.music.download
 
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.cachedIn
 import com.ddodang.intervalmusicspeedchanger.domain.model.DownloadMusicState
 import com.ddodang.intervalmusicspeedchanger.domain.model.YouTubeSearchResult
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.ExtractYouTubeSoundUseCase
-import com.ddodang.intervalmusicspeedchanger.domain.usecase.LoadMoreVideoListUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.SearchYouTubeVideoListUseCase
 import com.ddodang.intervalmusicspeedchanger.presentation.model.MusicDownloadStateItem
 import com.ddodang.intervalmusicspeedchanger.presentation.model.MusicSearchLoadingState
 import com.ddodang.intervalmusicspeedchanger.presentation.ui.base.BaseViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.retry
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,12 +27,22 @@ import javax.inject.Inject
 @HiltViewModel
 class MusicDownloadViewModel @Inject constructor(
     private val searchYouTubeVideoList: SearchYouTubeVideoListUseCase,
-    private val loadMoreVideoList: LoadMoreVideoListUseCase,
     private val extractYouTubeSound: ExtractYouTubeSoundUseCase,
 ) : BaseViewModel() {
 
-    private val _videoSearchResultListFlow = MutableStateFlow<List<YouTubeSearchResult.VideoInfo>>(emptyList())
-    val videoSearchResultList = _videoSearchResultListFlow.asStateFlow()
+    private val searchKeywordFlow = MutableStateFlow("")
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val videoSearchResultListFlow = searchKeywordFlow.flatMapLatest { keyword ->
+        if (keyword.isNotEmpty()) {
+            Pager(
+                config = PagingConfig(pageSize = 10),
+                pagingSourceFactory = { VideoSearchResultPagingSource(searchYouTubeVideoList, keyword) }
+            ).flow.cachedIn(viewModelScope)
+        } else {
+            flowOf()
+        }
+    }
 
     private val _musicDownloadStateFlow = MutableStateFlow(MusicDownloadStateItem(downloadInformation = null, downloadError = null))
     val musicDownloadStateFlow = _musicDownloadStateFlow.asStateFlow()
@@ -38,39 +50,8 @@ class MusicDownloadViewModel @Inject constructor(
     private val _loadingStateFlow = MutableStateFlow<MusicSearchLoadingState>(MusicSearchLoadingState.None)
     val loadingStateFlow = _loadingStateFlow.asStateFlow()
 
-    private var searchKeyword: String? = null
-    private var nextPageToken: String? = null
-
     fun search(keyWord: String) {
-        viewModelScope.launch {
-            searchKeyword = keyWord
-            searchYouTubeVideoList(keyWord)
-                .flowOn(Dispatchers.IO)
-                .catch {
-                    println(it)
-                }.onStart {
-                    _loadingStateFlow.value = MusicSearchLoadingState.Searching
-                }.onCompletion {
-                    _loadingStateFlow.value = MusicSearchLoadingState.None
-                }.retry(3) {
-                    true
-                }.collect { youTubeSearchResult ->
-                    nextPageToken = youTubeSearchResult.nextPageToken
-                    _videoSearchResultListFlow.value = youTubeSearchResult.videoList
-                }
-        }
-    }
-
-    fun loadMore() {
-        throttle(key = "KEY_BLOCK_LOAD_MORE", blockingTime = 0L) {
-            loadMoreVideoList(searchKeyword, nextPageToken).onSuccess { youTubeSearchResult ->
-                nextPageToken = youTubeSearchResult.nextPageToken
-                _videoSearchResultListFlow.update { currentVisibleVideoList ->
-                    currentVisibleVideoList + youTubeSearchResult.videoList
-                }
-
-            }
-        }
+        searchKeywordFlow.value = keyWord
     }
 
     fun download(searchResult: YouTubeSearchResult.VideoInfo) {
