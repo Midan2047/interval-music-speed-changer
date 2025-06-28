@@ -7,7 +7,7 @@ import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.DeleteMusicUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchIntervalSettingUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchMusicListUseCase
-import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
+import com.ddodang.intervalmusicspeedchanger.presentation.util.IntervalMusicPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +19,7 @@ class MusicListViewModel @Inject constructor(
     private val fetchMusicListUseCase: FetchMusicListUseCase,
     private val deleteMusicUseCase: DeleteMusicUseCase,
     private val fetchIntervalSettings: FetchIntervalSettingUseCase,
-    private val musicPlayer: MusicPlayer,
+    private val intervalMusicPlayer: IntervalMusicPlayer,
 ) : ViewModel() {
 
     private val _musicListFlow: MutableStateFlow<List<Music>> = MutableStateFlow(emptyList())
@@ -28,7 +28,7 @@ class MusicListViewModel @Inject constructor(
     private val _isRefreshingFlow: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val isRefreshingFlow = _isRefreshingFlow.asStateFlow()
 
-    val currentMusicFlow = musicPlayer.currentPlayingMusicFlow
+    val currentMusicFlow = intervalMusicPlayer.currentPlayingMusicFlow
 
     fun loadMusicList(doSilent: Boolean = false) {
         viewModelScope.launch {
@@ -50,9 +50,9 @@ class MusicListViewModel @Inject constructor(
 
     fun setMusic(music: Music) {
         viewModelScope.launch {
-            musicPlayer.setMusicList(musicListFlow.value)
+            intervalMusicPlayer.setMusicList(musicListFlow.value)
             val interval = fetchIntervalSettings().getOrDefault(IntervalSetting(1, 1, 1))
-            musicPlayer.initialize(music, interval)
+            intervalMusicPlayer.initialize(music, interval)
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.ddodang.intervalmusicspeedchanger.presentation.util
+package com.ddodang.intervalmusicspeedchanger.presentation.player
 
 import android.content.Context
 import android.content.Intent
@@ -11,15 +11,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.model.Music
 import com.ddodang.intervalmusicspeedchanger.domain.model.MusicPlayingInformation
 import com.ddodang.intervalmusicspeedchanger.presentation.model.RepeatMode
 import com.ddodang.intervalmusicspeedchanger.presentation.service.MusicService
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,20 +24,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 @UnstableApi
-@Singleton
-class MusicPlayer @OptIn(UnstableApi::class) @Inject constructor(
-    @ApplicationContext private val context: Context,
-) {
+@OptIn(UnstableApi::class)
+abstract class BaseMusicPlayer(protected val context: Context) {
 
-    private lateinit var exoPlayer: ExoPlayer
+    protected lateinit var exoPlayer: ExoPlayer
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            if (isPlaying) startInterval()
+            if (isPlaying) onMusicResume()
+            else onMusicPause()
             _musicPlayingInformationFlow.update {
                 it.copy(isPlaying = isPlaying)
             }
@@ -88,22 +82,8 @@ class MusicPlayer @OptIn(UnstableApi::class) @Inject constructor(
     )
     val musicPlayingInformationFlow = _musicPlayingInformationFlow.asStateFlow()
 
-    private val isPlaying: Boolean
+    protected val isPlaying: Boolean
         get() = musicPlayingInformationFlow.value.isPlaying
-
-    private var intervalJob: Job? = null
-        set(value) {
-            field?.cancel()
-            field = value
-        }
-
-    private var intervalRunning: Int = 1 * 60
-    private var intervalWalking: Int = 1 * 60
-    private var intervalSet: Int = 1
-    private var currentTime: Int = 0
-
-    private val secondPerIntervalSet
-        get() = intervalWalking + intervalRunning
 
     init {
         createExoPlayer()
@@ -113,26 +93,18 @@ class MusicPlayer @OptIn(UnstableApi::class) @Inject constructor(
         playList = musicList
     }
 
-    fun initialize(musicInfo: Music, interval: IntervalSetting) {
+    protected fun initialize(musicInfo: Music) {
         if (!exoPlayer.isPlaying) {
             context.startForegroundService(Intent(context, MusicService::class.java))
         }
-        setInterval(interval)
         setMusic(musicInfo)
-
-    }
-
-    fun setInterval(interval: IntervalSetting) {
-        intervalWalking = interval.walkingMinutes * 60
-        intervalRunning = interval.runningMinutes * 60
-        intervalSet = interval.setCount
     }
 
     @OptIn(UnstableApi::class)
     private fun setMusic(musicInfo: Music?) {
         if (isPlaying) stopMusic()
         if (playList.isNotEmpty()) {
-            if(exoPlayer.isReleased) createExoPlayer()
+            if (exoPlayer.isReleased) createExoPlayer()
             exoPlayer.setMediaItems(
                 playList.map { music -> music.toMediaItem() },
                 playList.indexOfFirst { it.id == musicInfo?.id }.coerceAtLeast(0),
@@ -185,29 +157,31 @@ class MusicPlayer @OptIn(UnstableApi::class) @Inject constructor(
         if (!isPlaying) {
             exoPlayer.play()
             exoPlayer.setPlaybackSpeed(musicPlayingInformationFlow.value.playbackSpeed)
-            startInterval()
+            observePlayingState()
+            onMusicResume()
         }
     }
 
-    private fun startInterval() {
-        if (intervalJob == null) {
-            intervalJob = CoroutineScope(Dispatchers.Default).launch {
-                while (currentTime < intervalSet * secondPerIntervalSet) {
-                    setMusicProgressAndPlayingTime()
-                    if (currentTime % secondPerIntervalSet == intervalWalking) {
-                        setPlaybackSpeed(1.5f)
-                    } else if (currentTime % secondPerIntervalSet == 0) {
-                        setPlaybackSpeed(1f)
-                    }
+    private fun observePlayingState() {
+        CoroutineScope(Dispatchers.Default).launch {
+            while (exoPlayer.isPlaying) {
+                _musicPlayingInformationFlow.update { musicPlayingInformation ->
+                    musicPlayingInformation.copy(
+                        playTimeMillis = exoPlayer.currentPosition
+                    )
                 }
-                currentTime = 0
-                intervalJob = null
-                context.startService(Intent(context, MusicService::class.java).apply { action = MusicService.Constants.ACTION.INTERVAL_DONE })
+                delay(300L)
             }
         }
     }
 
-    private suspend fun setPlaybackSpeed(playbackSpeed: Float) = withContext(Dispatchers.Main) {
+    abstract fun onMusicResume()
+
+    abstract fun onMusicPause()
+
+    abstract fun onMusicStop()
+
+    protected suspend fun setPlaybackSpeed(playbackSpeed: Float) = withContext(Dispatchers.Main) {
         exoPlayer.setPlaybackSpeed(playbackSpeed)
         _musicPlayingInformationFlow.update { musicPlayingInformation ->
             musicPlayingInformation.copy(playbackSpeed = playbackSpeed)
@@ -226,11 +200,11 @@ class MusicPlayer @OptIn(UnstableApi::class) @Inject constructor(
         do {
             delay(1000L)
         } while (!isPlaying)
-        currentTime += 1
     }
 
     fun pauseMusic() {
         exoPlayer.pause()
+        onMusicPause()
     }
 
     fun stopMusic() {
@@ -238,6 +212,7 @@ class MusicPlayer @OptIn(UnstableApi::class) @Inject constructor(
         _musicPlayingInformationFlow.update { it.copy(playTimeMillis = 0L) }
         exoPlayer.stop()
         exoPlayer.release()
+        onMusicStop()
     }
 
     fun setMusicPosition(positionInMillis: Int) {

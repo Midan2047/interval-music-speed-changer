@@ -18,7 +18,7 @@ import androidx.media3.common.util.UnstableApi
 import com.ddodang.intervalmusicspeedchanger.presentation.model.RepeatMode
 import com.ddodang.intervalmusicspeedchanger.presentation.notiifcation.MusicNotification
 import com.ddodang.intervalmusicspeedchanger.presentation.receiver.AudioBroadcastReceiver
-import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
+import com.ddodang.intervalmusicspeedchanger.presentation.util.IntervalMusicPlayer
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,7 +27,7 @@ import javax.inject.Inject
 class MusicService : Service(), LifecycleOwner, LifecycleObserver {
 
     @Inject
-    lateinit var musicPlayer: MusicPlayer
+    lateinit var intervalMusicPlayer: IntervalMusicPlayer
 
     @Inject
     lateinit var musicNotification: MusicNotification
@@ -54,21 +54,21 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
     @OptIn(UnstableApi::class)
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         when (intent.action) {
-            Constants.ACTION.TOGGLE_PLAY -> musicPlayer.togglePlay()
-            Constants.ACTION.PAUSE -> musicPlayer.pauseMusic()
-            Constants.ACTION.NEXT -> musicPlayer.playNextMusic()
-            Constants.ACTION.PREVIOUS -> musicPlayer.playPreviousMusic()
+            Constants.ACTION.TOGGLE_PLAY -> intervalMusicPlayer.togglePlay()
+            Constants.ACTION.PAUSE -> intervalMusicPlayer.pauseMusic()
+            Constants.ACTION.NEXT -> intervalMusicPlayer.playNextMusic()
+            Constants.ACTION.PREVIOUS -> intervalMusicPlayer.playPreviousMusic()
             Constants.ACTION.CLOSE -> finishService()
-            Constants.ACTION.SEEK_TO -> musicPlayer.setMusicPosition(intent.getLongExtra(Constants.PARAMETER.POSITION, 0L).toInt())
+            Constants.ACTION.SEEK_TO -> intervalMusicPlayer.setMusicPosition(intent.getLongExtra(Constants.PARAMETER.POSITION, 0L).toInt())
             Constants.ACTION.INTERVAL_DONE -> intervalDone()
-            Constants.ACTION.SET_SHUFFLE -> musicPlayer.setShuffleMode(intent.getBooleanExtra(Constants.PARAMETER.SHUFFLE_MODE, false))
+            Constants.ACTION.SET_SHUFFLE -> intervalMusicPlayer.setShuffleMode(intent.getBooleanExtra(Constants.PARAMETER.SHUFFLE_MODE, false))
             Constants.ACTION.SET_REPEAT_MODE -> {
                 val repeatMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getSerializableExtra(Constants.PARAMETER.REPEAT_MODE, RepeatMode::class.java) ?: RepeatMode.All
                 } else {
                     intent.getSerializableExtra(Constants.PARAMETER.REPEAT_MODE) as? RepeatMode ?: RepeatMode.All
                 }
-                musicPlayer.setRepeatMode(repeatMode)
+                intervalMusicPlayer.setRepeatMode(repeatMode)
             }
         }
         return START_STICKY
@@ -80,7 +80,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
         lifecycle.coroutineScope.launch {
             launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    musicPlayer.musicPlayingInformationFlow.collect { musicPlayingInformation ->
+                    intervalMusicPlayer.musicPlayingInformationFlow.collect { musicPlayingInformation ->
                         musicNotification.setMusicPlayingInformation(musicPlayingInformation)
                         startForeground(MusicNotification.MUSIC_PLAYER_NOTIFICATION_ID, musicNotification.createMusicPlayerNotification())
                     }
@@ -88,7 +88,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
             }
             launch {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    musicPlayer.currentPlayingMusicFlow.collect { currentMusic ->
+                    intervalMusicPlayer.currentPlayingMusicFlow.collect { currentMusic ->
                         if (currentMusic != null) {
                             musicNotification.setRemoteViewMusicInfo(currentMusic)
                             startForeground(MusicNotification.MUSIC_PLAYER_NOTIFICATION_ID, musicNotification.createMusicPlayerNotification())
@@ -108,7 +108,7 @@ class MusicService : Service(), LifecycleOwner, LifecycleObserver {
 
 
     private fun finishMusicPlayNotification() {
-        musicPlayer.stopMusic()
+        intervalMusicPlayer.stopMusic()
         musicNotification.cancelNotification()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
     }

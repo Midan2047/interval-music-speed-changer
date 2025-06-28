@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ddodang.intervalmusicspeedchanger.domain.model.IntervalSetting
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.FetchIntervalSettingUseCase
 import com.ddodang.intervalmusicspeedchanger.domain.usecase.UpdateIntervalSettingUseCase
-import com.ddodang.intervalmusicspeedchanger.presentation.util.MusicPlayer
+import com.ddodang.intervalmusicspeedchanger.presentation.util.IntervalMusicPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val fetchIntervalSettingUseCase: FetchIntervalSettingUseCase,
     private val updateIntervalSettingUseCase: UpdateIntervalSettingUseCase,
-    private val musicPlayer: MusicPlayer,
+    private val intervalMusicPlayer: IntervalMusicPlayer,
 ) : ViewModel() {
 
     private val _setCountFlow = MutableStateFlow(1)
@@ -38,7 +38,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val intervalSetting = fetchIntervalSettingUseCase().getOrDefault(IntervalSetting(1, 1, 1))
+            val intervalSetting = fetchIntervalSettingUseCase().getOrDefault(IntervalSetting(0, 0, 0))
             _setCountFlow.value = intervalSetting.setCount
             _walkingMinuteFlow.value = intervalSetting.walkingMinutes
             _runningMinuteFlow.value = intervalSetting.runningMinutes
@@ -65,7 +65,7 @@ class SettingsViewModel @Inject constructor(
                 runningMinutes = runningMinuteFlow.value
             )
             updateIntervalSettingUseCase(intervalSetting).onSuccess {
-                musicPlayer.setInterval(it)
+                intervalMusicPlayer.setInterval(it)
                 _saveDoneFlow.emit(true)
             }
         }

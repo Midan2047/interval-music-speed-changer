@@ -323,8 +323,8 @@ private fun SettingsBar(
             }
         )
         IconButton(
-            onClick = { onValueChange((value - 1).coerceAtLeast(1)) },
-            enabled = value > 1,
+            onClick = { onValueChange((value - 1).coerceAtLeast(0)) },
+            enabled = value > 0,
             modifier = Modifier.constrainAs(leftButtonRef) {
                 linkTo(parent.start, valueRef.start)
                 linkTo(settingTitleRef.bottom, parent.bottom)
